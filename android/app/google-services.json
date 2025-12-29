@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "701479392314",
+    "project_id": "prepify-3b8b4",
+    "storage_bucket": "prepify-3b8b4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:701479392314:android:e8375c0aba8763d1495103",
+        "android_client_info": {
+          "package_name": "com.example.prepify"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "701479392314-3touhgitdsinkfgdk9kv19spf33t52qp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOKv6_ZzsU9JBXoCuDK_CYUXadbj47jCg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "701479392314-3touhgitdsinkfgdk9kv19spf33t52qp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "701479392314-5vgurdcd9b4q9doprdiqbattu9lmc9sj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.prepify"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:701479392314:android:1f9a0202a76d1ae3495103",
+        "android_client_info": {
+          "package_name": "com.example.prepifyy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "701479392314-3touhgitdsinkfgdk9kv19spf33t52qp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOKv6_ZzsU9JBXoCuDK_CYUXadbj47jCg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "701479392314-3touhgitdsinkfgdk9kv19spf33t52qp.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "701479392314-5vgurdcd9b4q9doprdiqbattu9lmc9sj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.prepify"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
