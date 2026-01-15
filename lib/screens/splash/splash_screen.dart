@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prepify/utils/constants/colors.dart';
-import 'package:prepify/utils/constants/text_styles.dart';
 import 'package:prepify/screens/onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,14 +9,43 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
+
   @override
   void initState() {
     super.initState();
-    // Navigate to onboarding screen after 4 seconds
-    Future.delayed(const Duration(seconds: 4), () {
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    // Fade animation for both background and text
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
+
+    // Subtle scale animation for zoom effect
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    _animationController.forward();
+
+    // Navigate to onboarding after 4 seconds
+    Future.delayed(const Duration(seconds: 3), () {
       Get.offAll(() => const OnboardingScreen());
     });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
@@ -28,47 +55,34 @@ class _SplashScreenState extends State<SplashScreen> {
         children: [
           // BACKGROUND IMAGE
           SizedBox.expand(
-            child: Image.asset(
-              'assets/images/splash.jpeg',
-              fit: BoxFit.cover,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: Image.asset(
+                  'assets/images/splash.jpeg',
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
           ),
 
-          // COLOR OVERLAY
-          Container(
-            color: Colors.black.withOpacity(0.4), // dark overlay for contrast
-          ),
-
-          // CONTENT
+          // PREPIFY TEXT (CENTER) with glow/shadow to make it visible on any background
           Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.restaurant_menu,
-                  size: 100,
-                  color: AppColors.onPrimary,
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Prepify',
-                  style: AppTextStyles.displayMedium.copyWith(
-                    color: AppColors.onPrimary,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: const Text(
+                  'PREPIFY',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 60,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  'Your personal recipe assistant',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: AppColors.onPrimary.withOpacity(0.9),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.onPrimary),
-                ),
-              ],
+              ),
             ),
           ),
         ],

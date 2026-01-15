@@ -32,294 +32,237 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(AppSizes.paddingLarge),
-            child: Form(
-              key: signupController.formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Logo
-                  Image.asset(
-                    'assets/logo.png',
-                    height: 120,
-                    width: 120,
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.black),
+                    onPressed: () => Get.back(),
                   ),
-                  const SizedBox(height: AppSizes.marginLarge),
-                  
-                  // Welcome text
-                  Text(
-                    'Create Account',
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
+                ),
+                const SizedBox(height: 10),
+                // Logo & Brand Name
+                Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 120,
+                      width: 120,
                     ),
-                  ),
-                  const SizedBox(height: AppSizes.marginSmall),
-                  
-                  Text(
-                    'Sign up to get started',
-                    style: AppTextStyles.bodyLarge.copyWith(
-                      color: AppColors.grey,
+                    const SizedBox(height: 8),
+                    const Text(
+                      'PREPIFY',
+                      style: TextStyle(
+                         fontFamily: 'Roboto',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                        color: Colors.black87,
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+                
+                // Title
+                const Text(
+                  'Create your\nown account',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                    height: 1.2,
                   ),
-                  const SizedBox(height: AppSizes.marginLarge * 2),
-                  
-                  // Name and Username Fields in the same row
-                  Row(
+                ),
+                
+                const SizedBox(height: 10),
+                 // Divider line
+                Container(
+                  width: double.infinity,
+                  height: 1,
+                  color: Colors.grey[300],
+                ),
+                const SizedBox(height: 24),
+                
+                // Form
+                Form(
+                  key: signupController.formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: signupController.nameController,
-                          decoration: InputDecoration(
-                            labelText: 'Full Name',
-                            prefixIcon: const Icon(Icons.person_outline),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
+                      // Full Name
+                      _buildLabel('Full Name'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: signupController.nameController,
+                        decoration: _buildInputDecoration(hintText: 'Your full name'),
+                        validator: signupController.validateName,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Email
+                      _buildLabel('Email'),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: signupController.emailController,
+                        decoration: _buildInputDecoration(hintText: 'abc@gmail.com'),
+                        validator: signupController.validateEmail,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Password
+                      _buildLabel('Password'),
+                      const SizedBox(height: 8),
+                      Obx(
+                        () => TextFormField(
+                          controller: signupController.passwordController,
+                          obscureText: signupController.obscurePassword.value,
+                          decoration: _buildInputDecoration(hintText: 'At least 8 characters'),
+                          validator: signupController.validatePassword,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                       // Confirm Password
+                      _buildLabel('Confirm password'),
+                      const SizedBox(height: 8),
+                      Obx(
+                        () => TextFormField(
+                          controller: signupController.confirmPasswordController,
+                          obscureText: signupController.obscureConfirmPassword.value,
+                          decoration: _buildInputDecoration(hintText: 'Confirm password'),
+                          validator: signupController.validateConfirmPassword,
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Create Account Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: signupController.handleSignup,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF9CCC65), // Light green
+                            foregroundColor: Colors.black87,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
                             ),
-                            filled: true,
-                            fillColor: AppColors.lightGrey.withOpacity(0.3),
                           ),
-                          validator: signupController.validateName,
-                        ),
-                      ),
-                      const SizedBox(width: AppSizes.marginMedium),
-                      Expanded(
-                        child: TextFormField(
-                          controller: signupController.usernameController,
-                          decoration: InputDecoration(
-                            labelText: 'Username',
-                            prefixIcon: const Icon(Icons.person_outline),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
+                          child: const Text(
+                            'Create account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                            filled: true,
-                            fillColor: AppColors.lightGrey.withOpacity(0.3),
                           ),
-                          validator: signupController.validateUsername,
                         ),
                       ),
+                      
+                      const SizedBox(height: 24),
+                       // OR Divider
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(width: 40, height: 1, color: Colors.grey[400]),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Text(
+                              'or',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Container(width: 40, height: 1, color: Colors.grey[400]),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Login Link
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            "Have an account? ",
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Get.to(() => const LoginScreen());
+                            },
+                            child: const Text(
+                              "Login",
+                              style: TextStyle(
+                                color: Color(0xFF7CB342),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                     ],
                   ),
-                  const SizedBox(height: AppSizes.marginMedium),
-                  
-                  // Email Field
-                  TextFormField(
-                    controller: signupController.emailController,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
-                      ),
-                      filled: true,
-                      fillColor: AppColors.lightGrey.withOpacity(0.3),
-                    ),
-                    validator: signupController.validateEmail,
-                  ),
-                  const SizedBox(height: AppSizes.marginMedium),
-                  
-                  // Phone Field
-                  TextFormField(
-                    controller: signupController.phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      prefixIcon: const Icon(Icons.phone_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
-                      ),
-                      filled: true,
-                      fillColor: AppColors.lightGrey.withOpacity(0.3),
-                    ),
-                    validator: signupController.validatePhone,
-                  ),
-                  const SizedBox(height: AppSizes.marginMedium),
-                  
-                  // Password Field
-                  Obx(
-                    () => TextFormField(
-                      controller: signupController.passwordController,
-                      obscureText: signupController.obscurePassword.value,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            signupController.obscurePassword.value
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                          onPressed: signupController.togglePasswordVisibility,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.lightGrey.withOpacity(0.3),
-                      ),
-                      validator: signupController.validatePassword,
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.marginMedium),
-                  
-                  // Confirm Password Field
-                  Obx(
-                    () => TextFormField(
-                      controller: signupController.confirmPasswordController,
-                      obscureText: signupController.obscureConfirmPassword.value,
-                      decoration: InputDecoration(
-                        labelText: 'Confirm Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            signupController.obscureConfirmPassword.value
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                          onPressed: signupController.toggleConfirmPasswordVisibility,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
-                        ),
-                        filled: true,
-                        fillColor: AppColors.lightGrey.withOpacity(0.3),
-                      ),
-                      validator: signupController.validateConfirmPassword,
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.marginLarge),
-                  
-                  // Signup Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: signupController.handleSignup,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.onPrimary,
-                        padding: const EdgeInsets.symmetric(vertical: AppSizes.paddingMedium),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppSizes.borderRadiusLarge),
-                        ),
-                      ),
-                      child: Text(
-                        'Sign Up',
-                        style: AppTextStyles.labelLarge.copyWith(
-                          color: AppColors.onPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSizes.marginLarge),
-                  
-                  // Divider
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingSmall),
-                        child: Text(
-                          'or sign up with',
-                          style: AppTextStyles.labelMedium,
-                        ),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: AppSizes.marginLarge),
-                  
-                  // Social Signup Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      // Google Button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGrey.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.account_circle,
-                            color: AppColors.primary,
-                            size: AppSizes.iconLarge,
-                          ),
-                          onPressed: () {
-                            // Handle Google signup
-                          },
-                        ),
-                      ),
-                      // Facebook Button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGrey.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.facebook,
-                            color: AppColors.primary,
-                            size: AppSizes.iconLarge,
-                          ),
-                          onPressed: () {
-                            // Handle Facebook signup
-                          },
-                        ),
-                      ),
-                      // Twitter Button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGrey.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.chat,
-                            color: AppColors.primary,
-                            size: AppSizes.iconLarge,
-                          ),
-                          onPressed: () {
-                            // Handle Twitter signup
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSizes.marginLarge * 2),
-                  
-                  // Login Link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Already have an account? ',
-                        style: AppTextStyles.bodyMedium,
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Get.to(() => const LoginScreen());
-                        },
-                        child: Text(
-                          'Login',
-                          style: AppTextStyles.labelLarge.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4.0),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration({required String hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+      contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10), // Slightly smaller radius in signup? no same.
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFF9CCC65)),
+      ),
+      filled: true,
+      fillColor: Colors.white,
     );
   }
 }

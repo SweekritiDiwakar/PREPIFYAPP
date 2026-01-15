@@ -4,7 +4,7 @@ import 'package:prepify/utils/constants/text_styles.dart';
 import 'package:prepify/utils/constants/app_sizes.dart';
 
 class OnboardingPageModel {
-  final IconData image;
+  final String image;
   final String title;
   final String description;
 
@@ -22,35 +22,71 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingLarge),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Illustration
-          Icon(
+    return Stack(
+      children: [
+        // Background Image
+        Positioned.fill(
+          child: Image.asset(
             page.image,
-            size: 150,
-            color: AppColors.primary,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: Colors.grey[800],
+                child: const Center(
+                  child: Icon(Icons.broken_image, color: Colors.white, size: 50),
+                ),
+              );
+            },
           ),
-          const SizedBox(height: AppSizes.marginLarge),
-          // Title
-          Text(
-            page.title,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.headlineMedium.copyWith(
-              fontWeight: FontWeight.bold,
+        ),
+        // Gradient Overlay for text readability
+        Positioned.fill(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withOpacity(0.1),
+                  Colors.black.withOpacity(0.3),
+                  Colors.black.withOpacity(0.8),
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              ),
             ),
           ),
-          const SizedBox(height: AppSizes.marginMedium),
-          // Description
-          Text(
-            page.description,
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodyLarge,
+        ),
+        // Content
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingLarge),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                page.title,
+                textAlign: TextAlign.left,
+                style: AppTextStyles.headlineMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  fontSize: 32,
+                ),
+              ),
+              const SizedBox(height: AppSizes.marginMedium),
+              Text(
+                page.description,
+                textAlign: TextAlign.left,
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: Colors.white.withOpacity(0.9),
+                  height: 1.5,
+                ),
+              ),
+              // Add extra spacing at bottom to account for navigation buttons
+              const SizedBox(height: 160), 
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
