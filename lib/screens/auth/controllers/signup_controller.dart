@@ -8,18 +8,14 @@ class SignupController extends GetxController {
   var obscureConfirmPassword = true.obs;
 
   final nameController = TextEditingController();
-  final usernameController = TextEditingController();
   final emailController = TextEditingController();
-  final phoneController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
   @override
   void onClose() {
     nameController.dispose();
-    usernameController.dispose();
     emailController.dispose();
-    phoneController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
     super.onClose();
@@ -37,29 +33,8 @@ class SignupController extends GetxController {
     if (formKey.currentState!.validate()) {
       // Perform signup logic here
       // For now, we'll just navigate to the main screen
-      Get.offAll(() => const MainScreen());
+      Get.offAll(() => const MainScreen(showDashboard: false));
     }
-  }
-
-  String? validateUsername(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter a username';
-    }
-    if (value.length < 3) {
-      return 'Username must be at least 3 characters';
-    }
-    return null;
-  }
-
-  String? validatePhone(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter your phone number';
-    }
-    // Simple phone validation (you might want to adjust this)
-    if (!RegExp(r'^[0-9]{10,15}$').hasMatch(value)) {
-      return 'Please enter a valid phone number';
-    }
-    return null;
   }
 
   String? validateName(String? value) {
@@ -86,8 +61,8 @@ class SignupController extends GetxController {
     if (value == null || value.isEmpty) {
       return 'Please enter a password';
     }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
     }
     return null;
   }

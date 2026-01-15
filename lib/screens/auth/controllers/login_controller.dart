@@ -6,12 +6,12 @@ class LoginController extends GetxController {
   final formKey = GlobalKey<FormState>();
   var obscurePassword = true.obs;
 
-  final identifierController = TextEditingController(); // Can be email, phone, or username
+  final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
   @override
   void onClose() {
-    identifierController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.onClose();
   }
@@ -24,31 +24,18 @@ class LoginController extends GetxController {
     if (formKey.currentState!.validate()) {
       // Perform login logic here
       // For now, we'll just navigate to the main screen
-      Get.offAll(() => const MainScreen());
+      Get.offAll(() => const MainScreen(showDashboard: true));
     }
   }
 
-  String? validateIdentifier(String? value) {
+  String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter your email, phone, or username';
+      return 'Please enter your email address';
     }
-    
-    // Check if it's an email
-    if (RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-      return null; // Valid email
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      return 'Please enter a valid email address';
     }
-    
-    // Check if it's a phone number (10-15 digits)
-    if (RegExp(r'^[0-9]{10,15}$').hasMatch(value)) {
-      return null; // Valid phone
-    }
-    
-    // Check if it's a username (at least 3 characters)
-    if (value.length >= 3) {
-      return null; // Valid username
-    }
-    
-    return 'Please enter a valid email, phone number, or username';
+    return null;
   }
 
   String? validatePassword(String? value) {

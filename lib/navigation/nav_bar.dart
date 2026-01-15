@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:prepify/screens/nav_pages/home_page.dart';
-import 'package:prepify/screens/nav_pages/search_screen.dart';
-import 'package:prepify/screens/nav_pages/recipe_screen.dart';
-import 'package:prepify/screens/nav_pages/profile_screen.dart';
-import 'package:prepify/utils/constants/colors.dart';
+import 'package:prepify/home/dashboard/dashboard_screen.dart';
+import 'package:prepify/screens/nav_pages/landing_page.dart';
+import 'package:prepify/screens/nav_pages/add_recipe.dart';
+import 'package:prepify/home/search_screen/search_screen.dart';
+import 'package:prepify/home/notification_screen/notification_screen.dart';
+import 'package:prepify/home/profile_screen/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final bool showDashboard;
+  const MainScreen({super.key, this.showDashboard = true});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -15,30 +17,48 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  late List<Widget> _pages;
 
-  final List<Widget> _pages = [
-    const HomePage(),
-    const SearchScreen(),
-    const RecipeScreen(),
-    const ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      widget.showDashboard ? const DashboardScreen() : const LandingPage(),
+      const SearchScreen(),
+      const AddRecipeScreen(),
+      const AppNotificationScreen(),
+      const ProfileScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: _pages[_currentIndex],
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         height: 60.0,
-        items: const <Widget>[
-          Icon(Icons.home, size: 30, color: AppColors.onPrimary),
-          Icon(Icons.search, size: 30, color: AppColors.onPrimary),
-          Icon(Icons.restaurant, size: 30, color: AppColors.onPrimary),
-          Icon(Icons.person, size: 30, color: AppColors.onPrimary),
+        items: <Widget>[
+          const Icon(Icons.home_filled, size: 30, color: Colors.white),
+          const Icon(Icons.search, size: 30, color: Colors.white),
+          
+          // Custom Add Button as an Item
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF9CCC65), // Light green
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.add, size: 20, color: Colors.black),
+          ),
+          
+          const Icon(Icons.notifications_none_outlined, size: 30, color: Colors.white),
+          const Icon(Icons.settings_outlined, size: 30, color: Colors.white),
         ],
-        color: AppColors.primary,
-        buttonBackgroundColor: AppColors.primary,
-        backgroundColor: AppColors.background,
+        color: Colors.black, // Bar color
+        buttonBackgroundColor: Colors.black, // Bubble color
+        backgroundColor: Colors.white, // Background behind the curve
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 300),
         onTap: (index) {

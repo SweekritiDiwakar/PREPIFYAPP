@@ -6,6 +6,7 @@ import 'package:prepify/utils/constants/app_sizes.dart';
 import 'package:prepify/screens/auth/signup_screen.dart';
 import 'package:prepify/screens/auth/controllers/login_controller.dart';
 import 'package:prepify/screens/auth/widgets/form_widgets.dart';
+import 'package:prepify/screens/auth/forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,203 +33,196 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(AppSizes.paddingLarge),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo
-                Image.asset(
-                  'assets/logo.png',
-                  height: 120,
-                  width: 120,
+                const SizedBox(height: 40),
+                // Logo & Brand Name
+                Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 80,
+                      width: 80,
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'PREPIFY',
+                      style: TextStyle(
+                        fontFamily: 'Roboto', // Or your custom font if applicable
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSizes.marginLarge),
+                const SizedBox(height: 40),
                 
-                // Welcome text
+                // Welcome Text
                 Text(
-                  'Welcome Back!',
-                  style: AppTextStyles.headlineMedium.copyWith(
+                  'Welcome to\nPrepify!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: Colors.black,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: AppSizes.marginSmall),
+                const SizedBox(height: 16),
                 
                 Text(
-                  'Sign in to continue',
-                  style: AppTextStyles.bodyLarge.copyWith(
-                    color: AppColors.grey,
+                  'Login to discover amazing\nrecipes.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    height: 1.5,
                   ),
                 ),
-                const SizedBox(height: AppSizes.marginLarge * 2),
+                const SizedBox(height: 32),
                 
-                // Login Form
+                // Divider line
+                Container(
+                  width: 150,
+                  height: 1,
+                  color: Colors.grey[300],
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Login Heading
+                const Align(
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Login',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w600, // Semi-bold/Bold serif look in design?
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Form
                 Form(
                   key: loginController.formKey,
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Identifier Field (Email, Phone, or Username)
+                      // Email Field
+                      _buildLabel('Email address'),
+                      const SizedBox(height: 8),
                       TextFormField(
-                        controller: loginController.identifierController,
-                        decoration: InputDecoration(
-                          labelText: 'Email, Phone, or Username',
-                          prefixIcon: const Icon(Icons.person_outline),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
-                          ),
-                          filled: true,
-                          fillColor: AppColors.lightGrey.withOpacity(0.3),
+                        controller: loginController.emailController,
+                        decoration: _buildInputDecoration(
+                          hintText: 'Email address',
+                          prefixIcon: Icons.email_outlined,
                         ),
-                        validator: loginController.validateIdentifier,
+                        validator: loginController.validateEmail,
                       ),
-                      const SizedBox(height: AppSizes.marginMedium),
+                      const SizedBox(height: 16),
                       
                       // Password Field
+                      _buildLabel('Password'),
+                      const SizedBox(height: 8),
                       Obx(
                         () => TextFormField(
                           controller: loginController.passwordController,
                           obscureText: loginController.obscurePassword.value,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
+                          decoration: _buildInputDecoration(
+                            hintText: 'Password',
+                            prefixIcon: Icons.lock_outline,
+                          ).copyWith(
+                            suffixIcon: IconButton( // Removed unnecessary prefix icon from screenshot if not present, but keeping lock for UX
                               icon: Icon(
                                 loginController.obscurePassword.value
                                     ? Icons.visibility_off_outlined
                                     : Icons.visibility_outlined,
+                                color: Colors.grey,
                               ),
                               onPressed: loginController.togglePasswordVisibility,
                             ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppSizes.borderRadiusMedium),
-                            ),
-                            filled: true,
-                            fillColor: AppColors.lightGrey.withOpacity(0.3),
                           ),
                           validator: loginController.validatePassword,
                         ),
                       ),
-                      const SizedBox(height: AppSizes.marginSmall),
                       
-                      // Forgot Password
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () {
-                            // Handle forgot password
-                          },
-                          child: Text(
-                            'Forgot Password?',
-                            style: AppTextStyles.labelLarge.copyWith(
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSizes.marginLarge),
+                      const SizedBox(height: 24),
                       
                       // Login Button
                       SizedBox(
                         width: double.infinity,
+                        height: 50,
                         child: ElevatedButton(
                           onPressed: loginController.handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.onPrimary,
-                            padding: const EdgeInsets.symmetric(vertical: AppSizes.paddingMedium),
+                            backgroundColor: const Color(0xFF9CCC65), // Light green from design
+                            foregroundColor: Colors.black87,
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppSizes.borderRadiusLarge),
+                              borderRadius: BorderRadius.circular(25),
                             ),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Login',
-                            style: AppTextStyles.labelLarge.copyWith(
-                              color: AppColors.onPrimary,
+                            style: TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSizes.marginLarge),
                       
-                      // Divider
+                      const SizedBox(height: 16),
+                      
+                      // Forgot Password
+                      Center(
+                        child: TextButton(
+                          onPressed: () {
+                            Get.to(() => const ForgotPasswordScreen());
+                          },
+                          child: Text(
+                            'Forgot password?',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+                       // OR Divider
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Expanded(child: Divider()),
+                          Container(width: 40, height: 1, color: Colors.grey[400]),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingSmall),
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
                             child: Text(
-                              'or continue with',
-                              style: AppTextStyles.labelMedium,
+                              'or',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                          const Expanded(child: Divider()),
+                          Container(width: 40, height: 1, color: Colors.grey[400]),
                         ],
                       ),
-                      const SizedBox(height: AppSizes.marginLarge),
                       
-                      // Social Login Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Google Button
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.lightGrey.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.account_circle,
-                                color: AppColors.primary,
-                                size: AppSizes.iconLarge,
-                              ),
-                              onPressed: () {
-                                // Handle Google login
-                              },
-                            ),
-                          ),
-                          // Facebook Button
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.lightGrey.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.facebook,
-                                color: AppColors.primary,
-                                size: AppSizes.iconLarge,
-                              ),
-                              onPressed: () {
-                                // Handle Facebook login
-                              },
-                            ),
-                          ),
-                          // Twitter Button
-                          Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.lightGrey.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.chat,
-                                color: AppColors.primary,
-                                size: AppSizes.iconLarge,
-                              ),
-                              onPressed: () {
-                                // Handle Twitter login
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSizes.marginLarge * 2),
+                      const SizedBox(height: 16),
                       
                       // Sign Up Link
                       Row(
@@ -236,22 +230,28 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           Text(
                             "Don't have an account? ",
-                            style: AppTextStyles.bodyMedium,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.bold, // Matches "Have an account?" bolding in signup
+                              fontSize: 14,
+                            ),
                           ),
-                          TextButton(
-                            onPressed: () {
+                          GestureDetector(
+                            onTap: () {
                               Get.to(() => const SignupScreen());
                             },
                             child: Text(
-                              'Sign Up',
-                              style: AppTextStyles.labelLarge.copyWith(
-                                color: AppColors.primary,
+                              "Sign up",
+                              style: TextStyle(
+                                color: const Color(0xFF7CB342), // Green color matching button roughly
                                 fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -260,6 +260,52 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4.0),
+      child: Text(
+        text, // Actually the design puts the label inside the input or as a header. screenshot shows it inside as placeholder mostly? No, "Email address" is valid placeholder. "Password" is placeholder. But usually good to have labels.
+        // Wait, looking closer at screenshot:
+        // Login:
+        // [Email Icon] Email address (Placeholder)
+        // [Lock Icon] Password (Placeholder)
+        // I will use them as HintText/LabelText inside decoration to match "clean" look.
+        // Wait, screenshot 2 (signup) has explicit labels ABOVE the fields "Full Name", "Email", "Password".
+        // Screenshot 1 (login) layout is different. It just has fields.
+        // I will follow the specific screenshot for each screen.
+        // Login screenshot: Just fields with icons.
+        // Signup screenshot: Labels above fields.
+        // wait... actually looking closely at Login screenshot, it seems to have labels or just placeholders?
+        // It looks like placeholders inside the box.
+        // I'll stick to placeholders for Login to match strict visual.
+        style: const TextStyle(height: 0, fontSize: 0), // Hidden for Login if not needed
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration({required String hintText, required IconData prefixIcon}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
+      prefixIcon: Icon(prefixIcon, color: Colors.grey[400], size: 20),
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey[300]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF9CCC65)),
+      ),
+      filled: true,
+      fillColor: Colors.white,
     );
   }
 }
