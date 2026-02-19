@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:prepify/home/notification_screen/notification_screen.dart';
+import 'package:prepify/home/profile_screen/profile_screen.dart';
+import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/home/grocery_list_screen/grocery_list_screen.dart';
+import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
+import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -20,10 +24,18 @@ class DashboardScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundImage: const AssetImage('assets/images/me.jpeg'),
-                      backgroundColor: Colors.grey[200],
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                        );
+                      },
+                      child: CircleAvatar(
+                        radius: 20,
+                        backgroundImage: const AssetImage('assets/images/me.jpeg'),
+                        backgroundColor: Colors.grey[200],
+                      ),
                     ),
                     Column(
                       children: [
@@ -49,10 +61,10 @@ class DashboardScreen extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const AppNotificationScreen()),
+                          MaterialPageRoute(builder: (context) => ProfileScreen()),
                         );
                       },
-                      child: const Icon(Icons.notifications, size: 28, color: Colors.black),
+                      child: const Icon(Icons.settings, size: 28, color: Colors.black),
                     ),
                   ],
                 ),
@@ -132,7 +144,15 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 15),
                 Row(
                   children: [
-                    _buildQuickLink("Grocery List", Icons.format_list_bulleted, true),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GroceryListScreen()),
+                        );
+                      },
+                      child: _buildQuickLink("Grocery List", Icons.format_list_bulleted, true),
+                    ),
                     const SizedBox(width: 15),
                     _buildQuickLink("My profile", null, false),
                   ],
@@ -189,18 +209,21 @@ class DashboardScreen extends StatelessWidget {
                   child: Row(
                     children: [
                       _buildHorizontalDishCard(
+                        context,
                         'assets/images/butternaan.jpeg',
                         'Butter naan and chicken',
                         '1.5 hours · Medium',
                       ),
                       const SizedBox(width: 15),
                       _buildHorizontalDishCard(
+                        context,
                         'assets/images/muffin.jpeg',
                         'Chocolate Muffins',
                         '45 mins · Easy',
                       ),
                       const SizedBox(width: 15),
                       _buildHorizontalDishCard(
+                        context,
                         'assets/images/Garlicbread.jpeg',
                         'Garlic Bread',
                         '20 mins · Easy',
@@ -224,59 +247,78 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 15),
                 
                 // Naomi's Post
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const CircleAvatar(
-                            radius: 12,
-                            backgroundImage: AssetImage('assets/images/download (6).jpeg'),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            "Naomi",
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        height: 200,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(15),
-                          image: const DecorationImage(
-                            image: AssetImage('assets/images/Garlicbread.jpeg'),
-                            fit: BoxFit.cover,
+                GestureDetector(
+                  onTap: () {
+                    final recipe = RecipeData.allRecipes["Garlic bread"];
+                    if (recipe != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecipeDetailScreen(
+                            title: recipe["name"],
+                            imagePath: recipe["image"],
+                            duration: recipe["duration"],
+                            difficulty: recipe["difficulty"],
+                            sections: recipe["sections"],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Recipe!",
-                        style: TextStyle(fontSize: 10, color: Colors.black54),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Icon(Icons.favorite_border, size: 20, color: Colors.black54),
-                          Icon(Icons.chat_bubble_outline, size: 20, color: Colors.black54),
-                          Icon(Icons.share, size: 20, color: Colors.black54),
-                        ],
-                      ),
-                    ],
+                      );
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const CircleAvatar(
+                              radius: 12,
+                              backgroundImage: AssetImage('assets/images/download (6).jpeg'),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              "Naomi",
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          height: 200,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            image: const DecorationImage(
+                              image: AssetImage('assets/images/Garlicbread.jpeg'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          "Recipe!",
+                          style: TextStyle(fontSize: 10, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Icon(Icons.favorite_border, size: 20, color: Colors.black54),
+                            Icon(Icons.chat_bubble_outline, size: 20, color: Colors.black54),
+                            Icon(Icons.share, size: 20, color: Colors.black54),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 
@@ -324,40 +366,59 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHorizontalDishCard(String assetPath, String title, String subtitle) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          height: 180,
-          width: 300,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            image: DecorationImage(
-              image: AssetImage(assetPath),
-              fit: BoxFit.cover,
+  Widget _buildHorizontalDishCard(BuildContext context, String assetPath, String title, String subtitle) {
+    return GestureDetector(
+      onTap: () {
+        final recipe = RecipeData.allRecipes[title];
+        if (recipe != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RecipeDetailScreen(
+                title: recipe["name"],
+                imagePath: recipe["image"],
+                duration: recipe["duration"],
+                difficulty: recipe["difficulty"],
+                sections: recipe["sections"],
+              ),
+            ),
+          );
+        }
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 180,
+            width: 300,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              image: DecorationImage(
+                image: AssetImage(assetPath),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Serif',
-            color: Colors.black,
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Serif',
+              color: Colors.black,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

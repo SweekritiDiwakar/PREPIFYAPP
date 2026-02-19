@@ -5,6 +5,7 @@ import 'package:prepify/screens/nav_pages/landing_page.dart';
 import 'package:prepify/screens/nav_pages/add_recipe.dart';
 import 'package:prepify/home/search_screen/search_screen.dart';
 import 'package:prepify/home/notification_screen/notification_screen.dart';
+import 'package:prepify/home/profile_screen/user_profile_screen.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -27,7 +28,7 @@ class _MainScreenState extends State<MainScreen> {
       const SearchScreen(),
       const AddRecipeScreen(),
       const AppNotificationScreen(),
-      const ProfileScreen(),
+      UserProfileScreen(),
     ];
   }
 
@@ -54,7 +55,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           
           const Icon(Icons.notifications_none_outlined, size: 30, color: Colors.white),
-          const Icon(Icons.settings_outlined, size: 30, color: Colors.white),
+          const Icon(Icons.person_outline, size: 30, color: Colors.white),
         ],
         color: Colors.black, // Bar color
         buttonBackgroundColor: Colors.black, // Bubble color

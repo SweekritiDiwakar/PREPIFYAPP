@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:prepify/home/notification_screen/notification_screen.dart';
+import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/home/profile_screen/profile_screen.dart';
+import 'package:prepify/home/search_screen/breakfast_screen.dart';
+import 'package:prepify/home/search_screen/lunch_screen.dart';
+import 'package:prepify/home/search_screen/dinner_screen.dart';
+import 'package:prepify/home/search_screen/snacks_screen.dart';
+import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
+import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
 
 class SearchScreen extends StatelessWidget {
   const SearchScreen({super.key});
@@ -19,10 +26,18 @@ class SearchScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: const AssetImage('assets/images/me.jpeg'),
-                    backgroundColor: Colors.grey[200],
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: const AssetImage('assets/images/me.jpeg'),
+                      backgroundColor: Colors.grey[200],
+                    ),
                   ),
                   Column(
                     children: [
@@ -48,10 +63,10 @@ class SearchScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const AppNotificationScreen()),
+                        MaterialPageRoute(builder: (context) => ProfileScreen()),
                       );
                     },
-                    child: const Icon(Icons.notifications, size: 28, color: Colors.black),
+                    child: const Icon(Icons.settings, size: 28, color: Colors.black),
                   ),
                 ],
               ),
@@ -81,6 +96,7 @@ class SearchScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: const TextField(
+                  style: TextStyle(color: Colors.black),
                   decoration: InputDecoration(
                     hintText: "Search for recipes...",
                     hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
@@ -106,15 +122,23 @@ class SearchScreen extends StatelessWidget {
               const SizedBox(height: 15),
 
               // Categories Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildCategory("Breakfast", Icons.coffee, const Color(0xFFFBE9E7)),
-                  _buildCategory("Lunch", Icons.restaurant, const Color(0xFFE8EAF6)),
-                  _buildCategory("Dinner", Icons.wine_bar, const Color(0xFFF3E5F5)),
-                  _buildCategory("Desert", Icons.cookie, const Color(0xFFEFEBE9)),
-                ],
-              ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildCategory(context, "Breakfast", Icons.coffee, const Color(0xFFFBE9E7), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const BreakfastScreen()));
+                    }),
+                    _buildCategory(context, "Lunch", Icons.restaurant, const Color(0xFFE8EAF6), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const LunchScreen()));
+                    }),
+                    _buildCategory(context, "Dinner", Icons.wine_bar, const Color(0xFFF3E5F5), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const DinnerScreen()));
+                    }),
+                    _buildCategory(context, "Snacks", Icons.cookie, const Color(0xFFEFEBE9), () {
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const SnacksScreen()));
+                    }),
+                  ],
+                ),
 
               const SizedBox(height: 30),
 
@@ -132,11 +156,11 @@ class SearchScreen extends StatelessWidget {
               const SizedBox(height: 15),
 
               // Popular Recipes Vertical List
-              _buildRecipeItem("Garlic bread", 'assets/images/Garlicbread.jpeg'),
+              _buildRecipeItem(context, "Garlic bread", 'assets/images/Garlicbread.jpeg'),
               const SizedBox(height: 15),
-              _buildRecipeItem("Butter naan and chicken", 'assets/images/butternaan.jpeg'),
+              _buildRecipeItem(context, "Butter naan and chicken", 'assets/images/butternaan.jpeg'),
               const SizedBox(height: 15),
-              _buildRecipeItem("Chocolate chip cookies", 'assets/images/muffin.jpeg'),
+              _buildRecipeItem(context, "Chocolate chip cookies", 'assets/images/muffin.jpeg'),
 
               const SizedBox(height: 80),
             ],
@@ -146,60 +170,82 @@ class SearchScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCategory(String label, IconData icon, Color bgColor) {
-    return Column(
-      children: [
-        Container(
-          height: 65,
-          width: 65,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(15),
+  Widget _buildCategory(BuildContext context, String label, IconData icon, Color bgColor, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            height: 65,
+            width: 65,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: Colors.brown[900], size: 30),
           ),
-          child: Icon(icon, color: Colors.brown[900], size: 30),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.black87),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildRecipeItem(String title, String assetPath) {
-    return Container(
-      height: 90,
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(15),
-              bottomLeft: Radius.circular(15),
-            ),
-            child: Image.asset(
-              assetPath,
-              width: 100,
-              height: 90,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+  Widget _buildRecipeItem(BuildContext context, String title, String assetPath) {
+    return GestureDetector(
+      onTap: () {
+        final recipe = RecipeData.allRecipes[title];
+        if (recipe != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => RecipeDetailScreen(
+                title: recipe["name"],
+                imagePath: recipe["image"],
+                duration: recipe["duration"],
+                difficulty: recipe["difficulty"],
+                sections: recipe["sections"],
               ),
             ),
-          ),
-        ],
+          );
+        }
+      },
+      child: Container(
+        height: 90,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(15),
+                bottomLeft: Radius.circular(15),
+              ),
+              child: Image.asset(
+                assetPath,
+                width: 100,
+                height: 90,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

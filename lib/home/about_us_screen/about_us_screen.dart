@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:prepify/home/profile_screen/profile_screen.dart';
+import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 
 class AboutUsScreen extends StatelessWidget {
   const AboutUsScreen({super.key});
@@ -17,9 +19,17 @@ class AboutUsScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: AssetImage('assets/images/Kitchen.jpg'),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      );
+                    },
+                    child: const CircleAvatar(
+                      radius: 20,
+                      backgroundImage: AssetImage('assets/images/Kitchen.jpg '),
+                    ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
@@ -38,7 +48,15 @@ class AboutUsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const Icon(Icons.notifications, size: 28),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfileScreen()),
+                      );
+                    },
+                    child: const Icon(Icons.settings, size: 28, color: Colors.black),
+                  ),
                 ],
               ),
 

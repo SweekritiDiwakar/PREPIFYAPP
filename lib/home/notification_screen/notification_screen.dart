@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:prepify/home/profile_screen/profile_screen.dart';
+import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 
 class AppNotificationScreen extends StatelessWidget {
   const AppNotificationScreen({super.key});
@@ -18,10 +20,18 @@ class AppNotificationScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: const AssetImage('assets/images/me.jpeg'),
-                    backgroundColor: Colors.grey[200],
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: const AssetImage('assets/images/me.jpeg'),
+                      backgroundColor: Colors.grey[200],
+                    ),
                   ),
                   Column(
                     children: [
@@ -43,7 +53,15 @@ class AppNotificationScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const Icon(Icons.notifications, size: 28, color: Colors.black),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfileScreen()),
+                      );
+                    },
+                    child: const Icon(Icons.settings, size: 28, color: Colors.black),
+                  ),
                 ],
               ),
 

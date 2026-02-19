@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:prepify/home/profile_screen/profile_screen.dart';
+import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   const AddRecipeScreen({super.key});
@@ -72,10 +72,18 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.grey[200],
-                    backgroundImage: const AssetImage('assets/images/me.jpeg'),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      );
+                    },
+                    child: CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: const AssetImage('assets/images/me.jpeg'),
+                    ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
@@ -94,7 +102,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                       ),
                     ],
                   ),
-                  const Icon(Icons.notifications, size: 28),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfileScreen()),
+                      );
+                    },
+                    child: const Icon(Icons.settings, size: 28, color: Colors.black),
+                  ),
                 ],
               ),
 
