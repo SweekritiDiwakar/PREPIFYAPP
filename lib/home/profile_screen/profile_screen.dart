@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:prepify/home/about_us_screen/about_us_screen.dart';
+import 'package:prepify/screens/auth/login_screen.dart';
+import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/home/profile_screen/controllers/profile_controller.dart';
+import 'package:prepify/home/notification_screen/notification_screen.dart';
+import 'package:prepify/home/profile_screen/app_preferences_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  ProfileScreen({super.key});
+
+  final ProfileController _profileController = Get.put(ProfileController());
 
   @override
   Widget build(BuildContext context) {
@@ -18,35 +26,53 @@ class ProfileScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: AssetImage('assets/images/me.jpeg'),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                      );
+                    },
+                    child: const CircleAvatar(
+                      radius: 20,
+                      backgroundImage: AssetImage('assets/images/me.jpeg'),
+                      backgroundColor: Color(0xFFEEEEEE),
+                    ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
                         'assets/images/logo.png',
-                        height: 30,
+                        height: 35,
                       ),
                       const Text(
                         "PREPIFY",
                         style: TextStyle(
-                          fontSize: 8,
+                          fontSize: 10,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
+                          letterSpacing: 1.2,
+                          color: Colors.black,
                         ),
                       ),
                     ],
                   ),
-                  const Icon(Icons.notifications, size: 28),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ProfileScreen()),
+                      );
+                    },
+                    child: const Icon(Icons.settings, size: 28, color: Colors.black),
+                  ),
                 ],
               ),
 
               const SizedBox(height: 16),
 
               IconButton(
-                onPressed: () {},
+                onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back_ios,
                     color: Color(0xFF9CCC65), size: 20),
                 padding: EdgeInsets.zero,
@@ -56,14 +82,54 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               const Text(
-                "Settings",
+                "Profile",
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'serif',
-                  decoration: TextDecoration.underline,
+                  color: Colors.black,
                 ),
               ),
+
+              const SizedBox(height: 24),
+
+              // Profile Info Card
+              Obx(() => Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundImage: AssetImage('assets/images/me.jpeg'),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _profileController.name.value,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'serif',
+                          ),
+                        ),
+                        Text(
+                          _profileController.email.value,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              )),
 
               const SizedBox(height: 32),
 
@@ -73,6 +139,7 @@ class ProfileScreen extends StatelessWidget {
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   fontFamily: 'serif',
+                  color: Colors.black,
                 ),
               ),
 
@@ -82,54 +149,91 @@ class ProfileScreen extends StatelessWidget {
               _settingsItem(
                 icon: Icons.person,
                 title: "Edit Profile",
-                onTap: () {},
-                iconColor: const Color(0xFF7B322A),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                  );
+                },
+                iconColor: Colors.white,
+                circleColor: const Color(0xFF7B322A),
               ),
               const Divider(height: 1, color: Colors.grey),
               _settingsItem(
                 icon: Icons.notifications,
                 title: "Notifications",
-                onTap: () {},
-                iconColor: const Color(0xFF7B322A),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AppNotificationScreen()),
+                  );
+                },
+                iconColor: Colors.white,
+                circleColor: const Color(0xFF7B322A),
               ),
               const Divider(height: 1, color: Colors.grey),
               _settingsItem(
-                icon: Icons.card_membership,
+                icon: Icons.credit_card,
                 title: "App prefernces",
-                onTap: () {},
-                iconColor: const Color(0xFF7B322A),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AppPreferencesScreen()),
+                  );
+                },
+                iconColor: Colors.white,
+                circleColor: const Color(0xFF7B322A),
               ),
               const Divider(height: 1, color: Colors.grey),
 
-              const SizedBox(height: 60),
+              const SizedBox(height: 80),
 
               Center(
                 child: Column(
                   children: [
-                    SizedBox(
-                      width: 200,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFAED581),
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.3),
+                            spreadRadius: 2,
+                            blurRadius: 1,
+                            offset: const Offset(0, 0),
                           ),
+                        ],
+                        border: Border.all(
+                          color: Colors.blue.withOpacity(0.5),
+                          width: 2,
                         ),
-                        child: const Text(
-                          "Logout",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'serif',
+                      ),
+                      child: SizedBox(
+                        width: 220,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Get.offAll(() => const LoginScreen());
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFAED581),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: const Text(
+                            "Logout",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'serif',
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -144,6 +248,7 @@ class ProfileScreen extends StatelessWidget {
                           color: Color(0xFF9CCC65),
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
+                          decoration: TextDecoration.underline,
                         ),
                       ),
                     ),
@@ -162,24 +267,26 @@ class ProfileScreen extends StatelessWidget {
     required String title,
     required VoidCallback onTap,
     required Color iconColor,
+    required Color circleColor,
   }) {
     return ListTile(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
       leading: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F3),
-          borderRadius: BorderRadius.circular(12),
+          color: circleColor,
+          shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: iconColor, size: 22),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
       title: Text(
         title,
         style: const TextStyle(
           fontSize: 18,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w600,
           color: Colors.black,
+          fontFamily: 'serif',
         ),
       ),
       trailing:
