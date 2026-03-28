@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/home/grocery_list_screen/add_item_widget.dart';
+import 'package:prepify/home/grocery_list_screen/firestore_service.dart';
 
 class GroceryListScreen extends StatefulWidget {
   const GroceryListScreen({super.key});
@@ -10,53 +14,144 @@ class GroceryListScreen extends StatefulWidget {
 }
 
 class _GroceryListScreenState extends State<GroceryListScreen> {
-  final List<Map<String, dynamic>> _products = [
-    {'name': 'Butter', 'checked': false},
-    {'name': 'Chicken breast', 'checked': false},
-    {'name': 'Vanilla', 'checked': false},
-    {'name': 'Potatoes', 'checked': false},
-    {'name': 'Milk', 'checked': false},
-  ];
+  String? _selectedListId;
+  final Map<String, String> _userNameCache = {};
 
-  final List<Map<String, dynamic>> _purchased = [
-    {'name': 'Bananas', 'checked': true},
-    {'name': 'Rice', 'checked': true},
-    {'name': 'Salt', 'checked': true},
-  ];
-
-  final TextEditingController _newItemController = TextEditingController();
-
-  void _addNewItem() {
-    final String text = _newItemController.text.trim();
-    if (text.isNotEmpty) {
-      setState(() {
-        _products.add({'name': text, 'checked': false});
-        _newItemController.clear();
-      });
-    }
+  Future<void> _showCreateListDialog() async {
+    final controller = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create Grocery List'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'e.g. Weekly Groceries',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              final name = controller.text.trim();
+              if (name.isEmpty) return;
+              try {
+                final listId = await GroceryFirestoreService.createGroceryList(
+                  name,
+                );
+                if (!mounted) return;
+                setState(() {
+                  _selectedListId = listId;
+                });
+                navigator.pop();
+              } catch (_) {
+                if (!mounted) return;
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Could not create list.')),
+                );
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
   }
 
-  @override
-  void dispose() {
-    _newItemController.dispose();
-    super.dispose();
+  Future<void> _openAddItemSheet(String listId) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => AddItemWidget(
+        onAdd: (itemName, quantity) {
+          return GroceryFirestoreService.addItem(
+            listId: listId,
+            itemName: itemName,
+            quantity: quantity,
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showInviteMemberDialog(String listId) async {
+    final controller = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Invite Member'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: 'Enter member email',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await GroceryFirestoreService.addMemberByEmail(
+                  listId: listId,
+                  email: controller.text,
+                );
+                navigator.pop();
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Member added to list.')),
+                );
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                );
+              }
+            },
+            child: const Text('Invite'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+  }
+
+  Future<void> _preloadUserNames(List<String> userIds) async {
+    final missing = userIds.where((id) => !_userNameCache.containsKey(id)).toList();
+    if (missing.isEmpty) return;
+    final names = await GroceryFirestoreService.getUserNamesByIds(missing);
+    if (!mounted) return;
+    setState(() {
+      _userNameCache.addAll(names);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    int totalItems = _products.length + _purchased.length;
-    int checkedItems = _purchased.length;
-
     return Scaffold(
       backgroundColor: Colors.white,
+      floatingActionButton: _selectedListId == null
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _openAddItemSheet(_selectedListId!),
+              child: const Icon(Icons.add),
+            ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 10),
-              // Top Bar: Avatar, Logo, Bell (SS 2 Style)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -107,7 +202,6 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
               const SizedBox(height: 15),
 
-              // Back Button
               GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: const Icon(Icons.arrow_back_ios, color: Colors.green, size: 20),
@@ -115,7 +209,6 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
               const SizedBox(height: 20),
 
-              // Title
               const Text(
                 "Grocery List",
                 style: TextStyle(
@@ -126,185 +219,231 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: GroceryFirestoreService.streamUserLists(),
+                  builder: (context, listSnapshot) {
+                    if (listSnapshot.hasError) {
+                      return const Center(
+                        child: Text('Failed to load grocery lists.'),
+                      );
+                    }
+                    if (!listSnapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-              // List Progress 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "List Progress",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                  Text(
-                    "$checkedItems of $totalItems items",
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: LinearProgressIndicator(
-                  value: totalItems > 0 ? checkedItems / totalItems : 0,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-                  minHeight: 12,
+                    final lists = listSnapshot.data!.docs;
+                    if (lists.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('No grocery list found.'),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: _showCreateListDialog,
+                              child: const Text('Create Your First List'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    _selectedListId ??= lists.first.id;
+                    if (!lists.any((doc) => doc.id == _selectedListId)) {
+                      _selectedListId = lists.first.id;
+                    }
+                    final selected = lists.firstWhere(
+                      (doc) => doc.id == _selectedListId,
+                    );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _selectedListId,
+                                decoration: InputDecoration(
+                                  filled: true,
+                                  fillColor: Colors.grey[100],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                items: lists
+                                    .map(
+                                      (doc) => DropdownMenuItem<String>(
+                                        value: doc.id,
+                                        child: Text(
+                                          (doc.data()['name'] as String?) ??
+                                              'Untitled',
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() => _selectedListId = value);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: _showCreateListDialog,
+                              icon: const Icon(Icons.playlist_add),
+                            ),
+                            IconButton(
+                              onPressed: () => _showInviteMemberDialog(selected.id),
+                              icon: const Icon(Icons.person_add_alt_1),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: GroceryFirestoreService.streamItems(selected.id),
+                          builder: (context, itemSnapshot) {
+                            if (itemSnapshot.hasError) {
+                              return const Expanded(
+                                child: Center(
+                                  child: Text('Failed to load grocery items.'),
+                                ),
+                              );
+                            }
+                            if (!itemSnapshot.hasData) {
+                              return const Expanded(
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              );
+                            }
+
+                            final items = [...itemSnapshot.data!.docs]
+                              ..sort((a, b) {
+                                final aChecked =
+                                    (a.data()['isChecked'] as bool?) ?? false;
+                                final bChecked =
+                                    (b.data()['isChecked'] as bool?) ?? false;
+                                if (aChecked == bChecked) return 0;
+                                return aChecked ? 1 : -1;
+                              });
+
+                            final checkedCount = items
+                                .where(
+                                  (doc) =>
+                                      (doc.data()['isChecked'] as bool?) ??
+                                      false,
+                                )
+                                .length;
+                            final addedByIds = items
+                                .map((doc) => (doc.data()['addedBy'] as String?) ?? '')
+                                .where((id) => id.isNotEmpty)
+                                .toSet()
+                                .toList();
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _preloadUserNames(addedByIds);
+                            });
+
+                            return Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$checkedCount of ${items.length} purchased',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      itemCount: items.length,
+                                      itemBuilder: (context, index) {
+                                        final itemDoc = items[index];
+                                        final item = itemDoc.data();
+                                        final isChecked =
+                                            (item['isChecked'] as bool?) ??
+                                            false;
+                                        final itemName =
+                                            (item['itemName'] as String?) ?? '';
+                                        final quantity =
+                                            (item['quantity'] as String?) ?? '';
+                                        final addedBy =
+                                            (item['addedBy'] as String?) ?? '';
+                                        final addedByLabel = addedBy ==
+                                                FirebaseAuth.instance.currentUser?.uid
+                                            ? 'You'
+                                            : (_userNameCache[addedBy] ?? addedBy);
+
+                                        return Dismissible(
+                                          key: Key(itemDoc.id),
+                                          direction: DismissDirection.endToStart,
+                                          background: Container(
+                                            alignment: Alignment.centerRight,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                            ),
+                                            color: Colors.red,
+                                            child: const Icon(
+                                              Icons.delete,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          onDismissed: (_) async {
+                                            await GroceryFirestoreService
+                                                .deleteItem(
+                                              listId: selected.id,
+                                              itemId: itemDoc.id,
+                                            );
+                                          },
+                                          child: Card(
+                                            elevation: 0,
+                                            color: Colors.grey[100],
+                                            child: CheckboxListTile(
+                                              value: isChecked,
+                                              onChanged: (value) async {
+                                                await GroceryFirestoreService
+                                                    .toggleItemChecked(
+                                                  listId: selected.id,
+                                                  itemId: itemDoc.id,
+                                                  isChecked: value ?? false,
+                                                );
+                                              },
+                                              title: Text(
+                                                itemName,
+                                                style: TextStyle(
+                                                  decoration: isChecked
+                                                      ? TextDecoration.lineThrough
+                                                      : null,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                'Qty: $quantity • Added by: $addedByLabel',
+                                              ),
+                                              controlAffinity:
+                                                  ListTileControlAffinity.leading,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
-
-              const SizedBox(height: 25),
-
-              // Inline Add Item Section (SS Style)
-              Row(
-                children: [
-                   Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                     decoration: BoxDecoration(
-                       color: Colors.grey[100],
-                       borderRadius: BorderRadius.circular(20),
-                     ),
-                     child: Text(
-                       "${_products.length + 1}.",
-                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54),
-                     ),
-                   ),
-                   const SizedBox(width: 10),
-                   Expanded(
-                     child: Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                       decoration: BoxDecoration(
-                         color: Colors.grey[100],
-                         borderRadius: BorderRadius.circular(20),
-                       ),
-                       child: TextField(
-                         controller: _newItemController,
-                         decoration: InputDecoration(
-                           hintText: "e.g. 1 cup milk",
-                           border: InputBorder.none,
-                           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-                         ),
-                         onSubmitted: (value) => _addNewItem(),
-                       ),
-                     ),
-                   ),
-                   const SizedBox(width: 10),
-                   GestureDetector(
-                     onTap: _addNewItem,
-                     child: Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                       decoration: BoxDecoration(
-                         color: Colors.green.withOpacity(0.1),
-                         borderRadius: BorderRadius.circular(20),
-                       ),
-                       child: const Text(
-                         "Add",
-                         style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                       ),
-                     ),
-                   ),
-                ],
-              ),
-
-              const SizedBox(height: 30),
-
-              // Products Section 
-              const Text(
-                "Products",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Serif',
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildListContainer(_products, true),
-
-              const SizedBox(height: 30),
-
-              // Purchased Section
-              const Text(
-                "Purchased",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Serif',
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildListContainer(_purchased, false),
-
-              const SizedBox(height: 80),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildListContainer(List<Map<String, dynamic>> items, bool isProductList) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (context, index) => const Divider(height: 1, indent: 16, endIndent: 16),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return ListTile(
-            leading: Checkbox(
-              value: item['checked'],
-              onChanged: (val) {
-                if (val == null) return;
-                setState(() {
-                  item['checked'] = val;
-                  if (isProductList && val) {
-                    // Move from products to purchased
-                    _products.remove(item);
-                    _purchased.add(item);
-                  } else if (!isProductList && !val) {
-                    // Move from purchased to products
-                    _purchased.remove(item);
-                    _products.add(item);
-                  }
-                });
-              },
-              activeColor: Colors.green,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            title: Text(
-              item['name'],
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: item['checked'] ? Colors.grey : Colors.black,
-                decoration: item['checked'] ? TextDecoration.lineThrough : null,
-              ),
-            ),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
-              onPressed: () {
-                setState(() {
-                  items.removeAt(index);
-                });
-              },
-            ),
-          );
-        },
       ),
     );
   }

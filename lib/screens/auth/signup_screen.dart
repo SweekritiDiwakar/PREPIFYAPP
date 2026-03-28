@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prepify/utils/constants/colors.dart';
-import 'package:prepify/utils/constants/text_styles.dart';
-import 'package:prepify/utils/constants/app_sizes.dart';
 import 'package:prepify/screens/auth/login_screen.dart';
 import 'package:prepify/screens/auth/controllers/signup_controller.dart';
-import 'package:prepify/screens/auth/widgets/form_widgets.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -146,28 +142,39 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 32),
                       
                       // Create Account Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: signupController.handleSignup,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF9CCC65), // Light green
-                            foregroundColor: Colors.black87,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
+                      Obx(() => SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: signupController.isLoading.value
+                                  ? null
+                                  : () => signupController.handleSignup(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF9CCC65), // Light green
+                                foregroundColor: Colors.black87,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: signupController.isLoading.value
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.black87,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Create account',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
-                          ),
-                          child: const Text(
-                            'Create account',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
+                          )),
                       
                       const SizedBox(height: 24),
                        // OR Divider

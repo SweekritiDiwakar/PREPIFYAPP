@@ -91,58 +91,17 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 20),
                   
-                  // Fields
+                  // Email field
                   Column(
                     children: [
-                      // Number
                       TextFormField(
-                        controller: controller.numberController,
-                        keyboardType: TextInputType.phone,
+                        controller: controller.emailController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: _buildInputDecoration(
-                          hintText: 'Number',
-                          prefixIcon: Icons.phone_in_talk_outlined, // Using phone icon
+                          hintText: 'Email address',
+                          prefixIcon: Icons.email_outlined,
                         ),
-                        validator: controller.validateNumber,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // OTP
-                      TextFormField(
-                        controller: controller.otpController,
-                        keyboardType: TextInputType.number,
-                        decoration: _buildInputDecoration(
-                          hintText: 'Your OTP',
-                          prefixIcon: Icons.grid_view, // Using grid icon for OTP as in design (roughly)
-                        ),
-                        validator: controller.validateOTP,
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // New Password
-                      Obx(
-                        () => TextFormField(
-                          controller: controller.newPasswordController,
-                          obscureText: controller.obscureNewPassword.value,
-                          decoration: _buildInputDecoration(
-                            hintText: 'New password',
-                            prefixIcon: Icons.lock_outline,
-                          ),
-                          validator: controller.validatePassword,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Retype Password
-                      Obx(
-                        () => TextFormField(
-                          controller: controller.confirmPasswordController,
-                          obscureText: controller.obscureConfirmPassword.value,
-                          decoration: _buildInputDecoration(
-                            hintText: 'Retype your new password',
-                            prefixIcon: Icons.lock_outline,
-                          ),
-                          validator: controller.validateConfirmPassword,
-                        ),
+                        validator: controller.validateEmail,
                       ),
                     ],
                   ),
@@ -156,30 +115,39 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   const SizedBox(height: 30),
                   
-                  // Login Button (Reset Action)
-                  SizedBox(
-                    width: 200, // Fixed width as per design roughly or could be full
-                    child: ElevatedButton(
-                      onPressed: controller.handleReset,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF9CCC65), // Light green
-                        foregroundColor: Colors.black87,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
+                  // Reset button
+                  Obx(() => SizedBox(
+                        width: 200,
+                        child: ElevatedButton(
+                          onPressed:
+                              controller.isLoading.value ? null : controller.handleReset,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF9CCC65),
+                            foregroundColor: Colors.black87,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: controller.isLoading.value
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.black,
+                                  ),
+                                )
+                              : const Text(
+                                  'Send reset link',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
-                      ),
-                      child: const Text(
-                        'Login', // Design says 'Login' on the button
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontFamily: 'Serif', // Looks like a serif font in design screenshot
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
+                      )),
                    const SizedBox(height: 30),
                 ],
               ),

@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:prepify/home/about_us_screen/about_us_screen.dart';
+import 'package:prepify/home/household_screen/household_screen.dart';
+import 'package:prepify/home/stock_screen/stock_screen.dart';
 import 'package:prepify/screens/auth/login_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
-import 'package:prepify/home/profile_screen/controllers/profile_controller.dart';
 import 'package:prepify/home/notification_screen/notification_screen.dart';
 import 'package:prepify/home/profile_screen/app_preferences_screen.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:prepify/services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
-  ProfileScreen({super.key});
-
-  final ProfileController _profileController = Get.put(ProfileController());
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,10 @@ class ProfileScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               /// 🔝 Top Bar
-              Row(
+              Consumer<UserProfileProvider>(
+                builder: (context, profileProvider, _) {
+                  final imageUrl = profileProvider.user?.profileImage ?? '';
+                  return Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
@@ -33,10 +38,15 @@ class ProfileScreen extends StatelessWidget {
                         MaterialPageRoute(builder: (context) => const EditProfileScreen()),
                       );
                     },
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 20,
-                      backgroundImage: AssetImage('assets/images/me.jpeg'),
+                      backgroundImage: imageUrl.isNotEmpty
+                          ? NetworkImage(imageUrl)
+                          : null,
                       backgroundColor: Color(0xFFEEEEEE),
+                      child: imageUrl.isEmpty
+                          ? const Icon(Icons.person, color: Colors.grey)
+                          : null,
                     ),
                   ),
                   Column(
@@ -67,6 +77,8 @@ class ProfileScreen extends StatelessWidget {
                     child: const Icon(Icons.settings, size: 28, color: Colors.black),
                   ),
                 ],
+                  );
+                },
               ),
 
               const SizedBox(height: 16),
@@ -94,7 +106,15 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Profile Info Card
-              Obx(() => Container(
+              Consumer<UserProfileProvider>(
+                builder: (context, profileProvider, _) {
+                  if (profileProvider.isLoading && profileProvider.user == null) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final user = profileProvider.user;
+                  final imageUrl = user?.profileImage ?? '';
+                  return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
@@ -102,16 +122,20 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 30,
-                      backgroundImage: AssetImage('assets/images/me.jpeg'),
+                      backgroundImage:
+                          imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                      child: imageUrl.isEmpty
+                          ? const Icon(Icons.person, color: Colors.grey)
+                          : null,
                     ),
                     const SizedBox(width: 16),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _profileController.name.value,
+                          user?.name.isNotEmpty == true ? user!.name : 'No name',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -119,7 +143,7 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          _profileController.email.value,
+                          user?.email ?? '',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -129,7 +153,9 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
-              )),
+                  );
+                },
+              ),
 
               const SizedBox(height: 32),
 
@@ -185,6 +211,36 @@ class ProfileScreen extends StatelessWidget {
                 circleColor: const Color(0xFF7B322A),
               ),
               const Divider(height: 1, color: Colors.grey),
+              _settingsItem(
+                icon: Icons.groups_2_outlined,
+                title: "Household",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const HouseholdScreen(),
+                    ),
+                  );
+                },
+                iconColor: Colors.white,
+                circleColor: const Color(0xFF7B322A),
+              ),
+              const Divider(height: 1, color: Colors.grey),
+              _settingsItem(
+                icon: Icons.inventory_2_outlined,
+                title: "Stock Tracking",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const StockScreen(),
+                    ),
+                  );
+                },
+                iconColor: Colors.white,
+                circleColor: const Color(0xFF7B322A),
+              ),
+              const Divider(height: 1, color: Colors.grey),
 
               const SizedBox(height: 80),
 
@@ -210,7 +266,11 @@ class ProfileScreen extends StatelessWidget {
                       child: SizedBox(
                         width: 220,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
+                            await AuthService.signOut();
+                            if (context.mounted) {
+                              context.read<UserProfileProvider>().clearUser();
+                            }
                             Get.offAll(() => const LoginScreen());
                           },
                           style: ElevatedButton.styleFrom(
