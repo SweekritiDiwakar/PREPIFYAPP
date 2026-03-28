@@ -1,78 +1,47 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'package:prepify/screens/auth/login_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:prepify/services/auth_service.dart';
 
 class ForgotPasswordController extends GetxController {
   final formKey = GlobalKey<FormState>();
-  var obscureNewPassword = true.obs;
-  var obscureConfirmPassword = true.obs;
+  var isLoading = false.obs;
 
-  final numberController = TextEditingController();
-  final otpController = TextEditingController();
-  final newPasswordController = TextEditingController();
-  final confirmPasswordController = TextEditingController();
+  final emailController = TextEditingController();
 
   @override
   void onClose() {
-    numberController.dispose();
-    otpController.dispose();
-    newPasswordController.dispose();
-    confirmPasswordController.dispose();
+    emailController.dispose();
     super.onClose();
   }
 
-  void toggleNewPasswordVisibility() {
-    obscureNewPassword.value = !obscureNewPassword.value;
-  }
 
-  void toggleConfirmPasswordVisibility() {
-    obscureConfirmPassword.value = !obscureConfirmPassword.value;
-  }
-
-  void handleReset() {
-    if (formKey.currentState!.validate()) {
-      // Perform password reset logic here
-      // Navigate back to Login Screen
-      Get.offAll(() => const LoginScreen());
+  Future<void> handleReset() async {
+    if (!formKey.currentState!.validate()) return;
+    isLoading.value = true;
+    try {
+      await AuthService.resetPassword(email: emailController.text.trim());
+      Get.snackbar('Success',
+          'Reset link sent to your email. Please check your inbox.',
+          snackPosition: SnackPosition.BOTTOM);
+      Get.back();
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar('Error', e.message ?? 'Failed to send reset email.',
+          snackPosition: SnackPosition.BOTTOM);
+    } catch (e) {
+      Get.snackbar('Error', e.toString(),
+          snackPosition: SnackPosition.BOTTOM);
+    } finally {
+      isLoading.value = false;
     }
   }
 
-  String? validateNumber(String? value) {
+  String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter your number';
+      return 'Please enter your email';
     }
-    if (!RegExp(r'^[0-9]{10,15}$').hasMatch(value)) {
-      return 'Please enter a valid phone number';
-    }
-    return null;
-  }
-
-  String? validateOTP(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter the OTP';
-    }
-    if (value.length < 4) {
-      return 'OTP must be at least 4 digits';
-    }
-    return null;
-  }
-
-  String? validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please enter a new password';
-    }
-    if (value.length < 6) {
-      return 'Password must be at least 6 characters';
-    }
-    return null;
-  }
-
-  String? validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please retype your new password';
-    }
-    if (value != newPasswordController.text) {
-      return 'Passwords do not match';
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      return 'Please enter a valid email';
     }
     return null;
   }

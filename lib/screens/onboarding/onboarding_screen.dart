@@ -4,6 +4,8 @@ import 'package:prepify/utils/constants/colors.dart';
 import 'package:prepify/utils/constants/text_styles.dart';
 import 'package:prepify/utils/constants/app_sizes.dart';
 import 'package:prepify/screens/auth/login_screen.dart';
+import 'package:prepify/services/auth_service.dart';
+import 'package:prepify/navigation/nav_bar.dart';
 import 'package:prepify/screens/onboarding/onboarding_controller.dart';
 import 'package:prepify/screens/onboarding/onboarding_widgets.dart';
 
@@ -55,7 +57,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       );
     } else {
       // Navigate to login screen when onboarding is complete
-      Get.to(() => const LoginScreen());
+      if (AuthService.currentUser != null) {
+        Get.offAll(() => const MainScreen(showDashboard: true));
+      } else {
+        Get.to(() => const LoginScreen());
+      }
     }
   }
 

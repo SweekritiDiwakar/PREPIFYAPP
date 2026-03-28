@@ -1,12 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/home/recipe_detail_screen/recipe_detail_screen.dart';
 import 'package:prepify/home/grocery_list_screen/grocery_list_screen.dart';
-import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
-import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
+import 'package:prepify/models/recipe.dart';
+import 'package:prepify/providers/recipe_provider.dart';
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
+}
+
+class _LandingScreenState extends State<LandingScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<RecipeProvider>().fetchRecipes();
+    });
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    if (position.pixels >= position.maxScrollExtent - 200) {
+      context.read<RecipeProvider>().fetchMoreRecipes();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +49,7 @@ class LandingScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           child: SingleChildScrollView(
+            controller: _scrollController,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -106,9 +140,9 @@ class LandingScreen extends StatelessWidget {
                 
                 const SizedBox(height: 30),
                 
-                // "Today's dish" Title
+                // Recipe Feed Title
                 const Text(
-                  "Today's dish",
+                  "Latest recipes",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -119,24 +153,78 @@ class LandingScreen extends StatelessWidget {
                 
                 const SizedBox(height: 20),
                 
-                // Dish Card
-                _buildDishCard(
-                   context,
-                   imagePath: 'assets/images/butternaan.jpeg', 
-                   title: 'Butter naan and chicken',
-                   subtitle: '1.5 hours · Medium',
+                Consumer<RecipeProvider>(
+                  builder: (context, recipeProvider, _) {
+                    if (recipeProvider.isLoading &&
+                        recipeProvider.recipesList.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+
+                    if (recipeProvider.errorMessage != null &&
+                        recipeProvider.recipesList.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Text(
+                          recipeProvider.errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      );
+                    }
+
+                    if (recipeProvider.recipesList.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text('No recipes yet. Upload one from Add Recipe.'),
+                      );
+                    }
+
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: recipeProvider.recipesList.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 24),
+                      itemBuilder: (context, index) {
+                        final recipe = recipeProvider.recipesList[index];
+                        final preview = recipe.ingredients.isNotEmpty
+                            ? recipe.ingredients.take(2).join(', ')
+                            : recipe.steps;
+                        return _buildDishCard(
+                          context,
+                          recipe: recipe,
+                          subtitle: preview,
+                        );
+                      },
+                    );
+                  },
                 ),
-                
-                const SizedBox(height: 30),
-                
-                // Second Card
-                 _buildDishCard(
-                   context,
-                   imagePath: 'assets/images/muffin.jpeg', 
-                   title: 'Chocolate Muffins',
-                   subtitle: '45 mins · Easy',
+                Consumer<RecipeProvider>(
+                  builder: (context, recipeProvider, _) {
+                    if (recipeProvider.isFetchingMore) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (!recipeProvider.hasMore &&
+                        recipeProvider.recipesList.isNotEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Center(
+                          child: Text(
+                            'You reached the end.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
-                 const SizedBox(height: 80), // Bottom padding
+                const SizedBox(height: 80), // Bottom padding
               ],
             ),
           ),
@@ -145,59 +233,82 @@ class LandingScreen extends StatelessWidget {
     );
   }
   
-  Widget _buildDishCard(BuildContext context, {required String imagePath, required String title, required String subtitle}) {
+  Widget _buildDishCard(
+    BuildContext context, {
+    required Recipe recipe,
+    required String subtitle,
+  }) {
     return GestureDetector(
       onTap: () {
-        final recipe = RecipeData.allRecipes[title];
-        if (recipe != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RecipeDetailScreen(
-                title: recipe["name"],
-                imagePath: recipe["image"],
-                duration: recipe["duration"],
-                difficulty: recipe["difficulty"],
-                sections: recipe["sections"],
-              ),
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipeDetailScreen(
+              recipe: recipe,
             ),
-          );
-        }
+          ),
+        );
       },
       child: Column(
-        children: [
-          Container(
-            height: 250,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              image: DecorationImage(
-                image: AssetImage(imagePath),
-                fit: BoxFit.cover,
+      children: [
+        Container(
+          height: 250,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.network(
+            recipe.imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: Colors.grey[300],
+              child: const Center(child: Icon(Icons.broken_image)),
+            ),
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+              return const Center(child: CircularProgressIndicator());
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          recipe.title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'Serif',
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.favorite_border, size: 16, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              '${recipe.likes} likes',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Serif',
-              color: Colors.black, // Explicitly black
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
-        ],
+          ],
+        ),
+      ],
       ),
     );
   }

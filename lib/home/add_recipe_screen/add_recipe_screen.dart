@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'dart:io';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/providers/recipe_provider.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   const AddRecipeScreen({super.key});
@@ -11,22 +15,17 @@ class AddRecipeScreen extends StatefulWidget {
 
 class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _stepsController = TextEditingController();
   final List<TextEditingController> _ingredientsControllers = [
     TextEditingController()
   ];
-  final List<TextEditingController> _instructionsControllers = [
-    TextEditingController()
-  ];
+  File? _selectedImage;
 
   @override
   void dispose() {
     _titleController.dispose();
-    _descriptionController.dispose();
+    _stepsController.dispose();
     for (final c in _ingredientsControllers) {
-      c.dispose();
-    }
-    for (final c in _instructionsControllers) {
       c.dispose();
     }
     super.dispose();
@@ -45,17 +44,67 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
   }
 
-  void _addInstruction() {
-    setState(() => _instructionsControllers.add(TextEditingController()));
+  Future<void> _pickRecipeImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    setState(() {
+      _selectedImage = File(picked.path);
+    });
   }
 
-  void _removeInstruction(int index) {
-    if (_instructionsControllers.length > 1) {
-      setState(() {
-        _instructionsControllers[index].dispose();
-        _instructionsControllers.removeAt(index);
-      });
+  Future<void> _handleUpload() async {
+    final title = _titleController.text.trim();
+    final steps = _stepsController.text.trim();
+    final ingredients = _ingredientsControllers
+        .map((c) => c.text.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    if (title.isEmpty || steps.isEmpty || ingredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all fields.')),
+      );
+      return;
     }
+
+    if (_selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a recipe image.')),
+      );
+      return;
+    }
+
+    final provider = context.read<RecipeProvider>();
+    final success = await provider.uploadRecipe(
+      title: title,
+      ingredients: ingredients,
+      steps: steps,
+      imageFile: _selectedImage!,
+    );
+
+    if (!mounted) return;
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? 'Upload failed.')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Recipe uploaded successfully.')),
+    );
+    _titleController.clear();
+    _stepsController.clear();
+    for (final controller in _ingredientsControllers) {
+      controller.clear();
+    }
+    setState(() {
+      _selectedImage = null;
+    });
   }
 
   @override
@@ -148,30 +197,38 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
               _sectionTitle("Add Picture"),
               const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F3),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.add_photo_alternate,
-                    size: 56,
-                    color: Colors.grey,
+              GestureDetector(
+                onTap: _pickRecipeImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F5F3),
+                    borderRadius: BorderRadius.circular(20),
                   ),
+                  child: _selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.add_photo_alternate,
+                            size: 56,
+                            color: Colors.grey,
+                          ),
+                        ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              _sectionTitle("Description"),
+              _sectionTitle("Steps"),
               const SizedBox(height: 12),
               _inputField(
-                controller: _descriptionController,
-                hint: "Tell us little about your recipe..",
-                maxLines: 4,
+                controller: _stepsController,
+                hint: "Write the cooking steps...",
+                maxLines: 6,
               ),
 
               const SizedBox(height: 32),
@@ -207,61 +264,44 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               const SizedBox(height: 32),
 
 
-              /// 📝 Instructions Section (Below the bar in Figma)
-              _sectionTitle("Instructions"),
-              const SizedBox(height: 8),
-              ...List.generate(_instructionsControllers.length, (index) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _numberBubble(index + 1),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _inputField(
-                          controller: _instructionsControllers[index],
-                          hint: "Describe the step..",
-                          maxLines: 3,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => _removeInstruction(index),
-                        icon: const Icon(Icons.delete, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-
-              _pillButton("Add instruction", _addInstruction),
-
               const SizedBox(height: 48),
 
               /// 🚀 Final Upload Button
               Center(
                 child: SizedBox(
                   width: 200,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFAED581),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                    ),
-                    child: const Text(
-                      "Upload Recipe",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'serif',
-                      ),
-                    ),
+                  child: Consumer<RecipeProvider>(
+                    builder: (context, provider, _) {
+                      return ElevatedButton(
+                        onPressed: provider.isLoading ? null : _handleUpload,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFAED581),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: provider.isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : const Text(
+                                "Upload Recipe",
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'serif',
+                                ),
+                              ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -341,7 +381,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFAED581).withOpacity(0.5),
+          backgroundColor: const Color(0xFFAED581).withValues(alpha: 0.5),
           foregroundColor: Colors.black,
           elevation: 0,
           shape: RoundedRectangleBorder(

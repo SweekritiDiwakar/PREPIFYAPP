@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'dart:io';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
-import 'package:prepify/home/profile_screen/controllers/profile_controller.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -11,18 +14,28 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final ProfileController _profileController = Get.find<ProfileController>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
+  File? _selectedImage;
   bool _obscurePassword = true;
+
+  ImageProvider? _resolveAvatarProvider({
+    required String imageUrl,
+    required File? selectedImage,
+  }) {
+    if (selectedImage != null) return FileImage(selectedImage);
+    if (imageUrl.isNotEmpty) return NetworkImage(imageUrl);
+    return null;
+  }
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: _profileController.name.value);
-    _emailController = TextEditingController(text: _profileController.email.value);
-    _passwordController = TextEditingController(text: _profileController.password.value);
+    final user = context.read<UserProfileProvider>().user;
+    _nameController = TextEditingController(text: user?.name ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _passwordController = TextEditingController();
   }
 
   @override
@@ -48,10 +61,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    backgroundImage: AssetImage('assets/images/me.jpeg'),
-                    backgroundColor: Color(0xFFEEEEEE),
+                  Consumer<UserProfileProvider>(
+                    builder: (context, profileProvider, _) {
+                      final imageUrl = profileProvider.user?.profileImage ?? '';
+                      final avatarProvider = _resolveAvatarProvider(
+                        imageUrl: imageUrl,
+                        selectedImage: _selectedImage,
+                      );
+                      return CircleAvatar(
+                        radius: 20,
+                        backgroundImage: avatarProvider,
+                        backgroundColor: const Color(0xFFEEEEEE),
+                        child: avatarProvider == null
+                            ? const Icon(Icons.person, color: Colors.grey)
+                            : null,
+                      );
+                    },
                   ),
                   Column(
                     children: [
@@ -77,7 +102,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => ProfileScreen()),
+                        MaterialPageRoute(builder: (context) => const ProfileScreen()),
                       );
                     },
                     child: const Icon(Icons.settings, size: 28, color: Colors.black),
@@ -99,17 +124,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Center(
                 child: Column(
                   children: [
-                    const CircleAvatar(
+                    Consumer<UserProfileProvider>(
+                      builder: (context, profileProvider, _) {
+                        final imageUrl = profileProvider.user?.profileImage ?? '';
+                        final avatarProvider = _resolveAvatarProvider(
+                          imageUrl: imageUrl,
+                          selectedImage: _selectedImage,
+                        );
+                        return CircleAvatar(
                       radius: 60,
-                      backgroundImage: AssetImage('assets/images/me.jpeg'),
+                      backgroundImage: avatarProvider,
+                      child: avatarProvider == null
+                          ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                          : null,
+                    );
+                      },
                     ),
                     const SizedBox(height: 10),
-                    const Text(
-                      "Change photo",
-                      style: TextStyle(
-                        color: Color(0xFF689F38),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    GestureDetector(
+                      onTap: _pickProfileImage,
+                      child: const Text(
+                        "Change photo",
+                        style: TextStyle(
+                          color: Color(0xFF689F38),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -182,30 +222,64 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: SizedBox(
                   width: 120,
                   height: 45,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _profileController.updateProfile(
-                        _nameController.text,
-                        _emailController.text,
-                        _passwordController.text,
+                  child: Consumer<UserProfileProvider>(
+                    builder: (context, profileProvider, _) {
+                      return ElevatedButton(
+                        onPressed: profileProvider.isLoading
+                            ? null
+                            : () async {
+                                await profileProvider.updateName(
+                                  _nameController.text.trim(),
+                                );
+                                if (_selectedImage != null) {
+                                  await profileProvider.updateProfileImage(
+                                    _selectedImage!,
+                                  );
+                                }
+
+                                if (!mounted) return;
+                                if (profileProvider.errorMessage != null) {
+                                  Get.snackbar(
+                                    'Error',
+                                    profileProvider.errorMessage!,
+                                    snackPosition: SnackPosition.BOTTOM,
+                                  );
+                                  return;
+                                }
+
+                                Get.snackbar(
+                                  'Success',
+                                  'Profile updated',
+                                  snackPosition: SnackPosition.BOTTOM,
+                                );
+                                Navigator.of(this.context).pop();
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFAED581),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: profileProvider.isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              )
+                            : const Text(
+                                "Save",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
                       );
-                      Navigator.pop(context);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFAED581),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      "Save",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
                   ),
                 ),
               ),
@@ -215,6 +289,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+
+    if (picked == null) return;
+    setState(() {
+      _selectedImage = File(picked.path);
+    });
   }
 
   Widget _buildEditField(String label, TextEditingController controller, {

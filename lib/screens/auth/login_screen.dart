@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:prepify/utils/constants/colors.dart';
-import 'package:prepify/utils/constants/text_styles.dart';
-import 'package:prepify/utils/constants/app_sizes.dart';
 import 'package:prepify/screens/auth/signup_screen.dart';
 import 'package:prepify/screens/auth/controllers/login_controller.dart';
-import 'package:prepify/screens/auth/widgets/form_widgets.dart';
 import 'package:prepify/screens/auth/forgot_password_screen.dart';
+import 'package:prepify/services/auth_service.dart';
+import 'package:prepify/navigation/nav_bar.dart';
+import 'package:provider/provider.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +22,14 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     loginController = LoginController();
+    // if user already signed in, skip login screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (AuthService.currentUser != null) {
+        context.read<UserProfileProvider>().initializeCurrentUser().then((_) {
+          Get.offAll(() => MainScreen(showDashboard: true));
+        });
+      }
+    });
   }
 
   @override
@@ -159,28 +167,39 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 24),
                       
                       // Login Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: loginController.handleLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF9CCC65), // Light green from design
-                            foregroundColor: Colors.black87,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
+                      Obx(() => SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton(
+                              onPressed: loginController.isLoading.value
+                                  ? null
+                                  : () => loginController.handleLogin(context),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF9CCC65), // Light green from design
+                                foregroundColor: Colors.black87,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                              ),
+                              child: loginController.isLoading.value
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.black87,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Login',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                             ),
-                          ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
+                          )),
                       
                       const SizedBox(height: 16),
                       

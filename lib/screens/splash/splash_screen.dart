@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:provider/provider.dart';
 import 'package:prepify/screens/onboarding/onboarding_screen.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:prepify/services/auth_service.dart';
+import 'package:prepify/navigation/nav_bar.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -36,9 +40,16 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate to onboarding after 4 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      Get.offAll(() => const OnboardingScreen());
+    // Navigate to onboarding (or main if already signed in) after a short delay
+    Future.delayed(const Duration(seconds: 3), () async {
+      if (!mounted) return;
+      if (AuthService.currentUser != null) {
+        await context.read<UserProfileProvider>().initializeCurrentUser();
+        if (!mounted) return;
+        Get.offAll(() => const MainScreen(showDashboard: true));
+      } else {
+        Get.offAll(() => const OnboardingScreen());
+      }
     });
   }
 
