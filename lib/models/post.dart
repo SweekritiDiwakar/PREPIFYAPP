@@ -1,0 +1,99 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class Post {
+  final String id;
+  final String userId;
+  final String username;
+  final String imageUrl;
+  final String description;
+  final Timestamp? timestamp;
+  final int likesCount;
+
+  Post({
+    required this.id,
+    required this.userId,
+    required this.username,
+    required this.imageUrl,
+    required this.description,
+    this.timestamp,
+    this.likesCount = 0,
+  });
+
+  factory Post.fromFirestore(String id, Map<String, dynamic> data) {
+    return Post(
+      id: id,
+      userId: data['userId'] ?? '',
+      username: data['username'] ?? '',
+      imageUrl: data['imageUrl'] ?? '',
+      description: data['description'] ?? '',
+      timestamp: data['timestamp'] as Timestamp?,
+      likesCount: (data['likesCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'username': username,
+      'imageUrl': imageUrl,
+      'description': description,
+      'timestamp': timestamp ?? FieldValue.serverTimestamp(),
+      'likesCount': likesCount,
+    };
+  }
+
+  Post copyWith({
+    String? id,
+    String? userId,
+    String? username,
+    String? imageUrl,
+    String? description,
+    Timestamp? timestamp,
+    int? likesCount,
+  }) {
+    return Post(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      imageUrl: imageUrl ?? this.imageUrl,
+      description: description ?? this.description,
+      timestamp: timestamp ?? this.timestamp,
+      likesCount: likesCount ?? this.likesCount,
+    );
+  }
+}
+
+class Comment {
+  final String id;
+  final String userId;
+  final String username;
+  final String commentText;
+  final Timestamp? timestamp;
+
+  Comment({
+    required this.id,
+    required this.userId,
+    required this.username,
+    required this.commentText,
+    this.timestamp,
+  });
+
+  factory Comment.fromFirestore(String id, Map<String, dynamic> data) {
+    return Comment(
+      id: id,
+      userId: data['userId'] ?? '',
+      username: data['username'] ?? '',
+      commentText: data['commentText'] ?? '',
+      timestamp: data['timestamp'] as Timestamp?,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'userId': userId,
+      'username': username,
+      'commentText': commentText,
+      'timestamp': timestamp ?? FieldValue.serverTimestamp(),
+    };
+  }
+}

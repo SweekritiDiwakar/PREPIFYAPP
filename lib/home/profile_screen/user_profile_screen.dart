@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prepify/home/profile_screen/controllers/profile_controller.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
-import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
+import 'package:provider/provider.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:prepify/models/recipe.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -111,12 +115,43 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildStatItem("32", "Recipes"),
+                          Consumer<UserProfileProvider>(
+                            builder: (context, provider, _) {
+                              final count = provider.user?.completedRecipes ?? 0;
+                              return _buildStatItem("$count", "Completed");
+                            }
+                          ),
                           _buildStatItem("1.2k", "Followers"),
                           _buildStatItem("240", "Following"),
                         ],
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 15),
+                  Consumer<UserProfileProvider>(
+                    builder: (context, provider, _) {
+                      final badges = provider.user?.badges ?? [];
+                      if (badges.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Achievements 🏆", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: badges.map((b) => Chip(
+                                label: Text(b, style: const TextStyle(fontSize: 12)),
+                                backgroundColor: const Color(0xFFFBE9E7),
+                                side: BorderSide.none,
+                              )).toList(),
+                            ),
+                          ],
+                        )
+                      );
+                    }
                   ),
                   const SizedBox(height: 25),
                 ],
@@ -177,85 +212,79 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   }
 
   Widget _buildRecipeGrid() {
-    final List<String> profileRecipeNames = [
-      "Butter Chicken and Naan",
-      "Chocolate Muffin",
-      "Spicy Tomato Pasta",
-      "Kala Chana Chaat",
-      "Garlic Bread",
-      "Cajun Sausage Skillet",
-      "Zucchini Slices",
-      "Chicken Burrito",
-    ];
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('recipes')
+          .where('createdBy', isEqualTo: currentUserId)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final recipes = snapshot.data!.docs.map((doc) => Recipe.fromFirestore(doc.id, doc.data())).toList();
+        if (recipes.isEmpty) return const Center(child: Text("No recipes yet."));
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: profileRecipeNames.length,
-      itemBuilder: (context, index) {
-        final recipeName = profileRecipeNames[index];
-        final recipe = RecipeData.allRecipes[recipeName];
-        
-        if (recipe == null) return const SizedBox.shrink();
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => RecipeDetailScreen(
-                  title: recipe["name"],
-                  imagePath: recipe["image"],
-                  duration: recipe["duration"],
-                  difficulty: recipe["difficulty"],
-                  sections: recipe["sections"],
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 0.85,
+          ),
+          itemCount: recipes.length,
+          itemBuilder: (context, index) {
+            final recipe = recipes[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecipeDetailScreen.fromRecipe(recipe: recipe),
+                  ),
+                );
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  image: recipe.imageUrl.isNotEmpty ? DecorationImage(
+                    image: NetworkImage(recipe.imageUrl),
+                    fit: BoxFit.cover,
+                  ) : null,
+                  color: Colors.grey[300],
                 ),
-              ),
-            );
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              image: DecorationImage(
-                image: AssetImage(recipe["image"]!),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.7),
-                  ],
-                ),
-              ),
-              child: Align(
-                alignment: Alignment.bottomLeft,
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Text(
-                    recipe["name"]!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.7),
+                      ],
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Text(
+                        recipe.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );

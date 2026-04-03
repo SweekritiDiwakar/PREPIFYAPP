@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:prepify/home/notification_screen/notification_screen.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:prepify/models/recipe.dart';
 
 class RecipeSection {
   final String? sectionTitle;
@@ -21,6 +23,7 @@ class RecipeDetailScreen extends StatelessWidget {
   final String duration;
   final String difficulty;
   final List<RecipeSection> sections;
+  final Recipe? recipe;
 
   const RecipeDetailScreen({
     super.key,
@@ -29,7 +32,26 @@ class RecipeDetailScreen extends StatelessWidget {
     required this.duration,
     required this.difficulty,
     required this.sections,
+    this.recipe,
   });
+
+  // Factory constructor to create from Recipe model
+  factory RecipeDetailScreen.fromRecipe({required Recipe recipe}) {
+    return RecipeDetailScreen(
+      title: recipe.title,
+      imagePath: recipe.imageUrl,
+      duration: '30 min', // Default duration
+      difficulty: 'Medium', // Default difficulty
+      sections: [
+        RecipeSection(
+          sectionTitle: null,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps.split('\n').where((step) => step.trim().isNotEmpty).toList(),
+        ),
+      ],
+      recipe: recipe,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -120,12 +142,27 @@ class RecipeDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(25),
-                  child: Image.asset(
-                    imagePath,
-                    width: double.infinity,
-                    height: 250,
-                    fit: BoxFit.cover,
-                  ),
+                  child: imagePath.startsWith('assets') 
+                    ? Image.asset(
+                        imagePath,
+                        width: double.infinity,
+                        height: 250,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.network(
+                        imagePath,
+                        width: double.infinity,
+                        height: 250,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: double.infinity,
+                            height: 250,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.restaurant, size: 50, color: Colors.grey),
+                          );
+                        },
+                      ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -147,6 +184,40 @@ class RecipeDetailScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: sections.map((section) => _buildSection(section)).toList(),
+                ),
+              ),
+              const SizedBox(height: 30),
+              Center(
+                child: Consumer<UserProfileProvider>(
+                  builder: (context, provider, _) {
+                    return ElevatedButton.icon(
+                      onPressed: () async {
+                        await provider.incrementCompletedRecipes();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('🎉 Recipe Finished! Points added to your profile!'),
+                              backgroundColor: Colors.green,
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      },
+                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+                      label: const Text(
+                        "Finish Recipe",
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD84315),
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    );
+                  }
                 ),
               ),
               const SizedBox(height: 40),
