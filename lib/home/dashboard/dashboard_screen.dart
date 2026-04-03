@@ -4,6 +4,7 @@ import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/home/grocery_list_screen/grocery_list_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
+import 'package:prepify/home/social_feed/social_feed_list.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -244,83 +245,8 @@ class DashboardScreen extends StatelessWidget {
                     color: Colors.black,
                   ),
                 ),
-                const SizedBox(height: 15),
-                
-                // Naomi's Post
-                GestureDetector(
-                  onTap: () {
-                    final recipe = RecipeData.allRecipes["Garlic bread"];
-                    if (recipe != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecipeDetailScreen(
-                            title: recipe["name"],
-                            imagePath: recipe["image"],
-                            duration: recipe["duration"],
-                            difficulty: recipe["difficulty"],
-                            sections: recipe["sections"],
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const CircleAvatar(
-                              radius: 12,
-                              backgroundImage: AssetImage('assets/images/download (6).jpeg'),
-                            ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              "Naomi",
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          height: 200,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                            image: const DecorationImage(
-                              image: AssetImage('assets/images/Garlicbread.jpeg'),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Recipe!",
-                          style: TextStyle(fontSize: 10, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const [
-                            Icon(Icons.favorite_border, size: 20, color: Colors.black54),
-                            Icon(Icons.chat_bubble_outline, size: 20, color: Colors.black54),
-                            Icon(Icons.share, size: 20, color: Colors.black54),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                // Social Feed
+                const SocialFeedList(),
                 
                 const SizedBox(height: 80),
               ],

@@ -61,6 +61,7 @@ class RecipeProvider extends ChangeNotifier {
     required List<String> ingredients,
     required String steps,
     required File imageFile,
+    required String username,
   }) async {
     _setLoading(true);
     _errorMessage = null;
@@ -70,6 +71,7 @@ class RecipeProvider extends ChangeNotifier {
         ingredients: ingredients,
         steps: steps,
         imageFile: imageFile,
+        username: username,
       );
       await fetchRecipes();
       return true;

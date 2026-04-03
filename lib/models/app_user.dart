@@ -8,6 +8,8 @@ class AppUser {
     required this.profileImage,
     required this.householdId,
     this.createdAt,
+    this.completedRecipes = 0,
+    this.badges = const [],
   });
 
   final String uid;
@@ -16,6 +18,8 @@ class AppUser {
   final String profileImage;
   final String householdId;
   final Timestamp? createdAt;
+  final int completedRecipes;
+  final List<String> badges;
 
   factory AppUser.fromFirestore(
     String uid,
@@ -28,6 +32,8 @@ class AppUser {
       profileImage: (data['profileImage'] as String?) ?? '',
       householdId: (data['householdId'] as String?) ?? '',
       createdAt: data['createdAt'] as Timestamp?,
+      completedRecipes: (data['completedRecipes'] as num?)?.toInt() ?? 0,
+      badges: (data['badges'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
     );
   }
 
@@ -38,6 +44,8 @@ class AppUser {
       'profileImage': profileImage,
       'householdId': householdId,
       'createdAt': createdAt,
+      'completedRecipes': completedRecipes,
+      'badges': badges,
     };
   }
 
@@ -47,6 +55,8 @@ class AppUser {
     String? profileImage,
     String? householdId,
     Timestamp? createdAt,
+    int? completedRecipes,
+    List<String>? badges,
   }) {
     return AppUser(
       uid: uid,
@@ -55,6 +65,8 @@ class AppUser {
       profileImage: profileImage ?? this.profileImage,
       householdId: householdId ?? this.householdId,
       createdAt: createdAt ?? this.createdAt,
+      completedRecipes: completedRecipes ?? this.completedRecipes,
+      badges: badges ?? this.badges,
     );
   }
 }

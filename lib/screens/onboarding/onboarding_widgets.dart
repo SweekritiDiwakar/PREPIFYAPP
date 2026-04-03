@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:prepify/utils/constants/colors.dart';
 import 'package:prepify/utils/constants/text_styles.dart';
 import 'package:prepify/utils/constants/app_sizes.dart';
@@ -18,7 +19,10 @@ class OnboardingPageModel {
 class OnboardingPage extends StatelessWidget {
   final OnboardingPageModel page;
 
-  const OnboardingPage({super.key, required this.page});
+  const OnboardingPage({
+    super.key, 
+    required this.page,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +60,7 @@ class OnboardingPage extends StatelessWidget {
             ),
           ),
         ),
+
         // Content
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingLarge),

@@ -23,6 +23,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint('MainScreen: Initializing... showDashboard: ${widget.showDashboard}');
     _pages = [
       widget.showDashboard ? const DashboardScreen() : const LandingPage(),
       const SearchScreen(),

@@ -89,6 +89,20 @@ class UserProfileService {
     });
   }
 
+  static Future<void> incrementCompletedRecipes({
+    required String uid,
+    required int newCount,
+    List<String>? badges,
+  }) async {
+    final Map<String, dynamic> updates = {
+      'completedRecipes': newCount,
+    };
+    if (badges != null) {
+      updates['badges'] = badges;
+    }
+    await _users.doc(uid).update(updates);
+  }
+
   static Future<String> getCurrentUserHouseholdId() async {
     final authUser = _auth.currentUser;
     if (authUser == null) {
