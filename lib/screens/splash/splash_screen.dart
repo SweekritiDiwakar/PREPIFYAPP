@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:prepify/screens/onboarding/onboarding_screen.dart';
+import 'package:prepify/screens/auth/login_screen.dart';
 import 'package:prepify/providers/user_profile_provider.dart';
 import 'package:prepify/services/auth_service.dart';
 import 'package:prepify/navigation/nav_bar.dart';
@@ -40,15 +42,28 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate to onboarding (or main if already signed in) after a short delay
+    // Navigate after a fixed 3-second delay as per requirements
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
+      
+      final prefs = await SharedPreferences.getInstance();
+      // Debug: Force onboarding to show by ignoring saved preference
+      final onboardingCompleted = false; // prefs.getBool('onboarding_completed') ?? false;
+
+      if (!onboardingCompleted) {
+        debugPrint('SplashScreen: First time user, going to Onboarding');
+        Get.offAllNamed('/onboarding');
+        return;
+      }
+
       if (AuthService.currentUser != null) {
+        debugPrint('SplashScreen: User logged in, going to Home');
         await context.read<UserProfileProvider>().initializeCurrentUser();
         if (!mounted) return;
-        Get.offAll(() => const MainScreen(showDashboard: true));
+        Get.offAll(() => MainScreen(showDashboard: true));
       } else {
-        Get.offAll(() => const OnboardingScreen());
+        debugPrint('SplashScreen: No user, going to Login');
+        Get.offAllNamed('/login');
       }
     });
   }
@@ -62,41 +77,24 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // BACKGROUND IMAGE
-          SizedBox.expand(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Image.asset(
-                  'assets/images/splash.jpeg',
-                  fit: BoxFit.cover,
+      backgroundColor: Colors.white,
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/logo.png', // App logo as requested
+                  width: 150,
+                  height: 150,
                 ),
-              ),
+              ],
             ),
           ),
-
-          // PREPIFY TEXT (CENTER) with glow/shadow to make it visible on any background
-          Center(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: const Text(
-                  'PREPIFY',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 60,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

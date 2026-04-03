@@ -8,6 +8,7 @@ import 'package:prepify/services/auth_service.dart';
 import 'package:prepify/navigation/nav_bar.dart';
 import 'package:prepify/screens/onboarding/onboarding_controller.dart';
 import 'package:prepify/screens/onboarding/onboarding_widgets.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -49,6 +50,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  Future<void> _completeOnboarding() async {
+    debugPrint('Completing onboarding...');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_completed', true);
+    
+    debugPrint('Navigating to LoginScreen via named route');
+    await Future.delayed(const Duration(milliseconds: 100));
+    Get.offAllNamed('/login');
+  }
+
   void _navigateToNextPage() {
     if (onboardingController.currentPageIndex.value < _onboardingPages.length - 1) {
       _pageController.nextPage(
@@ -56,12 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOut,
       );
     } else {
-      // Navigate to login screen when onboarding is complete
-      if (AuthService.currentUser != null) {
-        Get.offAll(() => const MainScreen(showDashboard: true));
-      } else {
-        Get.to(() => const LoginScreen());
-      }
+      _completeOnboarding();
     }
   }
 
@@ -101,9 +107,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             top: 50,
             right: 20,
             child: TextButton(
-              onPressed: () {
-                Get.to(() => const LoginScreen());
-              },
+              onPressed: _completeOnboarding,
               style: TextButton.styleFrom(
                 backgroundColor: Colors.black.withOpacity(0.3),
                 shape: RoundedRectangleBorder(
@@ -153,46 +157,53 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // Previous button
-                      Obx(() => Visibility(
-                        visible: !onboardingController.isFirstPage,
-                        replacement: const SizedBox(width: 100), // Keep layout stable
-                        child: TextButton(
-                          onPressed: _navigateToPreviousPage,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          ),
-                          child: Text(
-                            'Previous',
-                            style: AppTextStyles.titleMedium.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Obx(() => Visibility(
+                          visible: !onboardingController.isFirstPage,
+                          child: TextButton(
+                            onPressed: _navigateToPreviousPage,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                            child: Text(
+                              'Previous',
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.titleMedium.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      )),
+                        )),
+                      ),
+                      
+                      const Spacer(),
                       
                       // Next/Get Started button
-                      Obx(() => ElevatedButton(
-                        onPressed: _navigateToNextPage,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
+                      Flexible(
+                        child: Obx(() => ElevatedButton(
+                          onPressed: _navigateToNextPage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
                           ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          onboardingController.isLastPage
-                              ? 'Get Started'
-                              : 'Next',
-                          style: AppTextStyles.titleMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87, // Better contrast on primary green
+                          child: Text(
+                            onboardingController.isLastPage
+                                ? 'Get Started'
+                                : 'Next',
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.titleMedium.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
                           ),
-                        ),
-                      )),
+                        )),
+                      ),
                     ],
                   ),
                 ],

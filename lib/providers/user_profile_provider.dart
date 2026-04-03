@@ -67,6 +67,45 @@ class UserProfileProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> incrementCompletedRecipes() async {
+    final currentUser = _user;
+    if (currentUser == null) return;
+
+    final newCount = currentUser.completedRecipes + 1;
+    final List<String> newBadges = List.from(currentUser.badges);
+    bool badgesChanged = false;
+    
+    if (newCount >= 1 && !newBadges.contains('First Recipe Master')) {
+      newBadges.add('First Recipe Master');
+      badgesChanged = true;
+    }
+    if (newCount >= 5 && !newBadges.contains('5 Recipes Pro')) {
+      newBadges.add('5 Recipes Pro');
+      badgesChanged = true;
+    }
+    if (newCount >= 10 && !newBadges.contains('10 Recipes Chef')) {
+      newBadges.add('10 Recipes Chef');
+      badgesChanged = true;
+    }
+
+    _user = currentUser.copyWith(
+      completedRecipes: newCount,
+      badges: newBadges,
+    );
+    notifyListeners();
+
+    try {
+      await UserProfileService.incrementCompletedRecipes(
+        uid: currentUser.uid,
+        newCount: newCount,
+        badges: badgesChanged ? newBadges : null,
+      );
+    } catch (e) {
+      _user = currentUser;
+      notifyListeners();
+    }
+  }
+
   void clearUser() {
     _user = null;
     _errorMessage = null;

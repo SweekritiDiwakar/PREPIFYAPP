@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/providers/recipe_provider.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
 
 class AddRecipeScreen extends StatefulWidget {
   const AddRecipeScreen({super.key});
@@ -79,11 +80,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
 
     final provider = context.read<RecipeProvider>();
+    final userProfile = context.read<UserProfileProvider>().user;
+    final username = userProfile?.name ?? 'Anonymous User';
+
     final success = await provider.uploadRecipe(
       title: title,
       ingredients: ingredients,
       steps: steps,
       imageFile: _selectedImage!,
+      username: username,
     );
 
     if (!mounted) return;

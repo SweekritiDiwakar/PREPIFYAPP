@@ -22,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     loginController = LoginController();
+    debugPrint('LoginScreen: Initializing... Current User: ${AuthService.currentUser?.email}');
     // if user already signed in, skip login screen
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (AuthService.currentUser != null) {
@@ -40,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('LoginScreen: Building UI...');
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(

@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:prepify/models/recipe.dart';
 import 'package:prepify/services/user_profile_service.dart';
+import 'package:prepify/services/social_service.dart';
 
 class RecipeService {
   RecipeService._();
@@ -23,6 +24,7 @@ class RecipeService {
     required List<String> ingredients,
     required String steps,
     required File imageFile,
+    required String username,
   }) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
@@ -60,6 +62,12 @@ class RecipeService {
       'createdAt': FieldValue.serverTimestamp(),
       'likes': 0,
     });
+
+    await SocialService.createPost(
+      imageUrl: imageUrl,
+      description: 'Check out my new recipe: $safeTitle!\n\nSteps:\n$safeSteps',
+      username: username,
+    );
   }
 
   static Future<RecipePageResult> fetchRecipesPage({
