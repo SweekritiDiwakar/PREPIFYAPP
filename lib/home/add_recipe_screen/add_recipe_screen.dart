@@ -1,7 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/providers/recipe_provider.dart';
@@ -21,6 +21,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     TextEditingController()
   ];
   File? _selectedImage;
+  String _selectedCategory = 'Veg';
+  final List<String> _categories = [
+    'Veg',
+    'Non-Veg',
+    'Snacks',
+    'Nepali Cuisine',
+    'Dessert',
+    'Drinks',
+  ];
 
   @override
   void dispose() {
@@ -80,36 +89,47 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     }
 
     final provider = context.read<RecipeProvider>();
-    final userProfile = context.read<UserProfileProvider>().user;
+    final userProfileProvider = context.read<UserProfileProvider>();
+    final userProfile = userProfileProvider.user;
     final username = userProfile?.name ?? 'Anonymous User';
 
-    final success = await provider.uploadRecipe(
-      title: title,
-      ingredients: ingredients,
-      steps: steps,
-      imageFile: _selectedImage!,
-      username: username,
-    );
-
-    if (!mounted) return;
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Upload failed.')),
+    try {
+      final success = await provider.uploadRecipe(
+        title: title,
+        category: _selectedCategory,
+        ingredients: ingredients,
+        steps: steps,
+        imageFile: _selectedImage!,
+        username: username,
       );
-      return;
-    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Recipe uploaded successfully.')),
-    );
-    _titleController.clear();
-    _stepsController.clear();
-    for (final controller in _ingredientsControllers) {
-      controller.clear();
+      if (!mounted) return;
+
+      if (success) {
+        await userProfileProvider.incrementCompletedRecipes();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recipe uploaded successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      } else {
+        final errorMsg = provider.errorMessage ?? 'Upload failed. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Upload failed: ${e.toString().replaceFirst('Exception: ', '')}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
-    setState(() {
-      _selectedImage = null;
-    });
   }
 
   @override
@@ -122,7 +142,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// 🔝 Top Bar
+              // 🔝 Top Bar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -142,10 +162,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 30,
-                      ),
+                      Image.asset('assets/images/logo.png', height: 30),
                       const Text(
                         "PREPIFY",
                         style: TextStyle(
@@ -167,18 +184,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
               IconButton(
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF9CCC65), size: 20),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
-
               const SizedBox(height: 16),
-
               const Text(
                 "Upload Recipe",
                 style: TextStyle(
@@ -188,18 +201,36 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   color: Colors.black,
                 ),
               ),
-
               const SizedBox(height: 24),
-
               _sectionTitle("Recipe Title"),
               const SizedBox(height: 12),
-              _inputField(
-                controller: _titleController,
-                hint: "e.g. Butter chicken and naan",
-              ),
-
+              _inputField(controller: _titleController, hint: "e.g. Butter chicken and naan"),
               const SizedBox(height: 24),
-
+              _sectionTitle("Category"),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F3),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedCategory,
+                    items: _categories
+                        .map((category) => DropdownMenuItem(value: category, child: Text(category)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _selectedCategory = value;
+                      });
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               _sectionTitle("Add Picture"),
               const SizedBox(height: 12),
               GestureDetector(
@@ -217,28 +248,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                           child: Image.file(_selectedImage!, fit: BoxFit.cover),
                         )
                       : const Center(
-                          child: Icon(
-                            Icons.add_photo_alternate,
-                            size: 56,
-                            color: Colors.grey,
-                          ),
+                          child: Icon(Icons.add_photo_alternate, size: 56, color: Colors.grey),
                         ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               _sectionTitle("Steps"),
               const SizedBox(height: 12),
-              _inputField(
-                controller: _stepsController,
-                hint: "Write the cooking steps...",
-                maxLines: 6,
-              ),
-
+              _inputField(controller: _stepsController, hint: "Write the cooking steps...", maxLines: 6),
               const SizedBox(height: 32),
-
-              /// 🧂 Ingredients
               _sectionTitle("Ingredients"),
               const SizedBox(height: 8),
               ...List.generate(_ingredientsControllers.length, (index) {
@@ -263,15 +281,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   ),
                 );
               }),
-
               _pillButton("Add ingredients", _addIngredient),
-
               const SizedBox(height: 32),
-
-
-              const SizedBox(height: 48),
-
-              /// 🚀 Final Upload Button
               Center(
                 child: SizedBox(
                   width: 200,
@@ -284,26 +295,17 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                           foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                         ),
                         child: provider.isLoading
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.black,
-                                ),
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                               )
                             : const Text(
                                 "Upload Recipe",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'serif',
-                                ),
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'serif'),
                               ),
                       );
                     },
@@ -318,42 +320,28 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     );
   }
 
-  /// 🔹 UI helpers
-
   Widget _sectionTitle(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          fontFamily: 'serif',
-          color: Colors.black,
-        ),
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'serif', color: Colors.black),
       ),
     );
   }
 
-  Widget _inputField({
-    String? hint,
-    int maxLines = 1,
-    TextEditingController? controller,
-  }) {
+  Widget _inputField({String? hint, int maxLines = 1, TextEditingController? controller}) {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F3),
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFF5F5F3), borderRadius: BorderRadius.circular(20)),
       child: TextField(
         controller: controller,
         maxLines: maxLines,
+        style: const TextStyle(color: Colors.black),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         ),
       ),
     );
@@ -363,18 +351,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     return Container(
       width: 44,
       height: 44,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F3),
-        borderRadius: BorderRadius.circular(15),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFF5F5F3), borderRadius: BorderRadius.circular(15)),
       child: Center(
         child: Text(
           "$number.",
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.grey,
-            fontSize: 16,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 16),
         ),
       ),
     );
@@ -386,21 +367,13 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFFAED581).withValues(alpha: 0.5),
+          backgroundColor: const Color(0xFFAED581).withAlpha(180),
           foregroundColor: Colors.black,
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-          ),
-        ),
+        child: Text(text, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ),
     );
   }

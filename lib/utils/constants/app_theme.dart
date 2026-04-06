@@ -8,6 +8,10 @@ class AppThemes {
     brightness: Brightness.light,
     primaryColor: AppColors.primary,
     scaffoldBackgroundColor: AppColors.background,
+    // Force all TextField typed text to black globally
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: Colors.black,
+    ),
     appBarTheme: const AppBarTheme(
       color: AppColors.primary,
       elevation: 0,
@@ -38,8 +42,8 @@ class AppThemes {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: Colors.white,
-      labelStyle: const TextStyle(color: Colors.black),
-      hintStyle: TextStyle(color: Colors.grey[600]),
+      labelStyle: const TextStyle(color: Colors.black87),
+      hintStyle: TextStyle(color: Colors.grey[500]),
       suffixIconColor: Colors.grey,
       prefixIconColor: Colors.grey,
       border: OutlineInputBorder(
@@ -54,6 +58,12 @@ class AppThemes {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF9CCC65)),
       ),
+    ),
+    // This makes typed text black in ALL TextFields across the app
+    colorScheme: const ColorScheme.light(
+      primary: Color(0xFF9CCC65),
+      onSurface: Colors.black,
+      onBackground: Colors.black,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -79,6 +89,13 @@ class AppThemes {
     brightness: Brightness.dark,
     primaryColor: AppColors.primary,
     scaffoldBackgroundColor: Colors.grey[900],
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: Colors.white,
+    ),
+    colorScheme: const ColorScheme.dark(
+      primary: Color(0xFF9CCC65),
+      onSurface: Colors.white,
+    ),
     appBarTheme: const AppBarTheme(
       color: AppColors.primary,
       elevation: 0,

@@ -29,11 +29,18 @@ class UserProfileService {
       final safeName = (fallbackName ?? authUser?.displayName ?? '').trim();
 
       await docRef.set({
-        'name': safeName,
+        'username': safeName,
         'email': safeEmail,
-        'profileImage': '',
+        'bio': '',
+        'photoUrl': '',
+        'followers': <String>[],
+        'following': <String>[],
+        'isPrivate': false,
+        'showFavoritesPublicly': true,
         'householdId': '',
         'createdAt': FieldValue.serverTimestamp(),
+        'completedRecipes': 0,
+        'badges': <String>[],
       });
     }
 
@@ -72,7 +79,11 @@ class UserProfileService {
   }) async {
     final path = 'profile_images/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg';
     final ref = _storage.ref().child(path);
-    await ref.putFile(imageFile);
+    try {
+      await ref.putFile(imageFile);
+    } catch (e) {
+      throw StateError('Image upload failed. Please check your connection and try again.');
+    }
     final downloadUrl = await ref.getDownloadURL();
 
     await _users.doc(uid).update({'profileImage': downloadUrl});
@@ -86,6 +97,16 @@ class UserProfileService {
   }) async {
     await _users.doc(uid).update({
       'householdId': householdId.trim(),
+    });
+  }
+
+  static Future<void> addBadge({
+    required String uid,
+    required String badge,
+  }) async {
+    await ensureUserDocument(uid: uid);
+    await _users.doc(uid).update({
+      'badges': FieldValue.arrayUnion(<String>[badge]),
     });
   }
 
@@ -110,9 +131,8 @@ class UserProfileService {
     }
     final snap = await _users.doc(authUser.uid).get();
     final householdId = (snap.data()?['householdId'] as String?)?.trim() ?? '';
-    if (householdId.isEmpty) {
-      throw StateError('User is not in a household yet.');
-    }
+    
+    // Return empty string instead of throwing - let services handle it
     return householdId;
   }
 }

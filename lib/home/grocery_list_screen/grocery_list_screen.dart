@@ -5,6 +5,7 @@ import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/home/grocery_list_screen/add_item_widget.dart';
 import 'package:prepify/home/grocery_list_screen/firestore_service.dart';
+import 'package:prepify/services/nepali_calendar_service.dart';
 
 class GroceryListScreen extends StatefulWidget {
   const GroceryListScreen({super.key});
@@ -16,6 +17,8 @@ class GroceryListScreen extends StatefulWidget {
 class _GroceryListScreenState extends State<GroceryListScreen> {
   String? _selectedListId;
   final Map<String, String> _userNameCache = {};
+  List<String> _festivalSuggestions = [];
+  bool _showSuggestions = false;
 
   Future<void> _showCreateListDialog() async {
     final controller = TextEditingController();
@@ -64,20 +67,43 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     controller.dispose();
   }
 
-  Future<void> _openAddItemSheet(String listId) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => AddItemWidget(
-        onAdd: (itemName, quantity) {
-          return GroceryFirestoreService.addItem(
-            listId: listId,
-            itemName: itemName,
-            quantity: quantity,
-          );
-        },
-      ),
-    );
+  Future<void> _openAddItemSheet(String listId, {String? itemName}) async {
+    if (listId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid grocery list selected'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+    
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => AddItemWidget(
+          prefillItemName: itemName,
+          onAdd: (itemName, quantity, {num? amount}) {
+            return GroceryFirestoreService.addItem(
+              listId: listId,
+              itemName: itemName,
+              quantity: quantity,
+              amount: amount,
+            );
+          },
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening add item form: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _showInviteMemberDialog(String listId) async {
@@ -86,12 +112,46 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Invite Member'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            hintText: 'Enter member email',
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                hintText: 'Enter member email',
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Or share this code with household members:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: FutureBuilder<String>(
+                future: _getHouseholdInviteCode(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const CircularProgressIndicator();
+                  }
+                  return Text(
+                    snapshot.data!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -125,7 +185,51 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     controller.dispose();
   }
 
-  Future<void> _preloadUserNames(List<String> userIds) async {
+  Future<String> _getHouseholdInviteCode() async {
+    // This would typically come from your household service
+    return 'GROCERY-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+  }
+
+  @override
+void initState() {
+  super.initState();
+  // Set up global error handler for this screen
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('An error occurred'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
+  };
+  _loadFestivalSuggestions();
+}
+
+Future<void> _loadFestivalSuggestions() async {
+    try {
+      final suggestions = NepaliCalendarService.fetchFestivalGrocerySuggestions();
+      if (mounted) {
+        setState(() {
+          _festivalSuggestions = suggestions;
+          _showSuggestions = suggestions.isNotEmpty;
+        });
+      }
+    } catch (e) {
+      // Silently fail if suggestions can't be loaded, but log for debugging
+      debugPrint('Error loading festival suggestions: $e');
+      if (mounted) {
+        setState(() {
+          _festivalSuggestions = [];
+          _showSuggestions = false;
+        });
+      }
+    }
+  }
+
+Future<void> _preloadUserNames(List<String> userIds) async {
     final missing = userIds.where((id) => !_userNameCache.containsKey(id)).toList();
     if (missing.isEmpty) return;
     final names = await GroceryFirestoreService.getUserNamesByIds(missing);
@@ -142,12 +246,23 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       floatingActionButton: _selectedListId == null
           ? null
           : FloatingActionButton(
-              onPressed: () => _openAddItemSheet(_selectedListId!),
+              onPressed: () {
+                if (_selectedListId != null && _selectedListId!.isNotEmpty) {
+                  _openAddItemSheet(_selectedListId!);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select a grocery list first'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                }
+              },
               child: const Icon(Icons.add),
             ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -209,13 +324,117 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
               const SizedBox(height: 20),
 
-              const Text(
-                "Grocery List",
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Serif',
-                  color: Colors.black,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Grocery List",
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Serif',
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Nepali Calendar and Festival Suggestions
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F8E8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF9CCC65), width: 1),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_today, color: Color(0xFF9CCC65), size: 20),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Builder(
+                            builder: (context) {
+                              try {
+                                final nepaliDate = NepaliCalendarService.getTodayNepaliDate();
+                                return Text(
+                                  'आजको मिति: $nepaliDate',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF2E7D32),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                );
+                              } catch (e) {
+                                return const Text(
+                                  'आजको मिति: Loading...',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF2E7D32),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_showSuggestions && _festivalSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'आगामी पर्वका लागि सुझावहरू:',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF558B2F),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 4,
+                        runSpacing: 2,
+                        children: _festivalSuggestions.take(5).map((suggestion) {
+                          return GestureDetector(
+                            onTap: () {
+                              if (_selectedListId != null) {
+                                _openAddItemSheet(_selectedListId!, itemName: suggestion);
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Please select a grocery list first')),
+                                );
+                              }
+                            },
+                            child: Container(
+                              constraints: const BoxConstraints(maxWidth: 120),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFF9CCC65), width: 0.5),
+                              ),
+                              child: Text(
+                                suggestion,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
                 ),
               ),
 
@@ -234,7 +453,17 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                     }
 
                     final lists = listSnapshot.data!.docs;
-                    if (lists.isEmpty) {
+                    // Sort client-side by createdAt descending (avoids composite index requirement)
+                    final sortedLists = [...lists]..sort((a, b) {
+                        final aTs = a.data()['createdAt'];
+                        final bTs = b.data()['createdAt'];
+                        if (aTs == null && bTs == null) return 0;
+                        if (aTs == null) return 1;
+                        if (bTs == null) return -1;
+                        return (bTs as dynamic).compareTo(aTs as dynamic);
+                      });
+                    final lists2 = sortedLists;
+                    if (lists2.isEmpty) {
                       return Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -250,11 +479,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                       );
                     }
 
-                    _selectedListId ??= lists.first.id;
-                    if (!lists.any((doc) => doc.id == _selectedListId)) {
-                      _selectedListId = lists.first.id;
+                    _selectedListId ??= lists2.first.id;
+                    if (!lists2.any((doc) => doc.id == _selectedListId)) {
+                      _selectedListId = lists2.first.id;
                     }
-                    final selected = lists.firstWhere(
+                    final selected = lists2.firstWhere(
                       (doc) => doc.id == _selectedListId,
                     );
 
@@ -264,6 +493,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                         Row(
                           children: [
                             Expanded(
+                              flex: 3,
                               child: DropdownButtonFormField<String>(
                                 initialValue: _selectedListId,
                                 decoration: InputDecoration(
@@ -273,6 +503,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide.none,
                                   ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 ),
                                 items: lists
                                     .map(
@@ -281,6 +512,8 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                         child: Text(
                                           (doc.data()['name'] as String?) ??
                                               'Untitled',
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
                                         ),
                                       ),
                                     )
@@ -291,16 +524,61 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                 },
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 4),
                             IconButton(
                               onPressed: _showCreateListDialog,
                               icon: const Icon(Icons.playlist_add),
+                              constraints: const BoxConstraints(),
+                              padding: const EdgeInsets.all(8),
                             ),
                             IconButton(
                               onPressed: () => _showInviteMemberDialog(selected.id),
                               icon: const Icon(Icons.person_add_alt_1),
+                              constraints: const BoxConstraints(),
+                              padding: const EdgeInsets.all(8),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Active members indicator
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: FirebaseFirestore.instance.collection('grocery_lists').doc(selected.id).collection('items').limit(5).snapshots(),
+                          builder: (context, activitySnapshot) {
+                            if (!activitySnapshot.hasData) return const SizedBox.shrink();
+                            
+                            final recentItems = activitySnapshot.data!.docs;
+                            final activeMembers = <String>{};
+                            
+                            for (final item in recentItems) {
+                              final addedBy = item.data()['addedBy'] as String?;
+                              if (addedBy != null) {
+                                activeMembers.add(addedBy);
+                              }
+                            }
+                            
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.people, size: 16, color: Colors.blue),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${activeMembers.length} active member${activeMembers.length == 1 ? '' : 's'}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.blue,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -410,6 +688,9 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                                   listId: selected.id,
                                                   itemId: itemDoc.id,
                                                   isChecked: value ?? false,
+                                                  itemName: itemName,
+                                                  quantity: quantity,
+                                                  amount: (item['amount'] as num?),
                                                 );
                                               },
                                               title: Text(

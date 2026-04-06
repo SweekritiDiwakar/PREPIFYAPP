@@ -14,6 +14,7 @@ class SocialService {
     required String imageUrl,
     required String description,
     required String username,
+    required String category,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw StateError('Not logged in');
@@ -23,6 +24,7 @@ class SocialService {
       'username': username,
       'imageUrl': imageUrl,
       'description': description,
+      'category': category,
       'timestamp': FieldValue.serverTimestamp(),
       'likesCount': 0,
     });
@@ -60,6 +62,7 @@ class SocialService {
   static Future<void> toggleLike(String postId, String userId, bool currentlyLiked) async {
     final postRef = _posts.doc(postId);
     final likeRef = postRef.collection('likes').doc(userId);
+    final userLikeRef = _db.collection('users').doc(userId).collection('likedPosts').doc(postId);
 
     await _db.runTransaction((transaction) async {
       final postDoc = await transaction.get(postRef);
@@ -70,13 +73,75 @@ class SocialService {
       if (currentlyLiked) {
         // Unlike
         transaction.delete(likeRef);
+        transaction.delete(userLikeRef);
         transaction.update(postRef, {'likesCount': currentLikes - 1});
       } else {
         // Like
         transaction.set(likeRef, {'timestamp': FieldValue.serverTimestamp()});
+        final postData = postDoc.data()!;
+        transaction.set(userLikeRef, {
+          'userId': postData['userId'] ?? '',
+          'username': postData['username'] ?? '',
+          'imageUrl': postData['imageUrl'] ?? '',
+          'description': postData['description'] ?? '',
+          'category': postData['category'] ?? '',
+          'timestamp': postData['timestamp'] ?? FieldValue.serverTimestamp(),
+          'likesCount': postData['likesCount'] ?? 0,
+          'likedAt': FieldValue.serverTimestamp(),
+        });
         transaction.update(postRef, {'likesCount': currentLikes + 1});
       }
     });
+  }
+
+  static Stream<List<Post>> streamUserLikedPosts(String userId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('likedPosts')
+        .orderBy('likedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => Post.fromFirestore(doc.id, doc.data()))
+            .toList());
+  }
+
+  static Future<bool> isPostFavoritedByUser(String postId, String userId) async {
+    final doc = await _db.collection('users').doc(userId).collection('favorites').doc(postId).get();
+    return doc.exists;
+  }
+
+  static Future<void> toggleFavorite(String postId, String userId, bool currentlyFavorited) async {
+    final favRef = _db.collection('users').doc(userId).collection('favorites').doc(postId);
+    if (currentlyFavorited) {
+      await favRef.delete();
+    } else {
+      final postDoc = await _posts.doc(postId).get();
+      if (!postDoc.exists) return;
+      final postData = postDoc.data()!;
+      await favRef.set({
+        'userId': postData['userId'] ?? '',
+        'username': postData['username'] ?? '',
+        'imageUrl': postData['imageUrl'] ?? '',
+        'description': postData['description'] ?? '',
+        'category': postData['category'] ?? '',
+        'timestamp': postData['timestamp'] ?? FieldValue.serverTimestamp(),
+        'likesCount': postData['likesCount'] ?? 0,
+        'favoritedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  static Stream<List<Post>> streamUserFavoritePosts(String userId) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('favorites')
+        .orderBy('favoritedAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => Post.fromFirestore(doc.id, doc.data()))
+            .toList());
   }
 
   static Stream<List<Comment>> streamComments(String postId) {

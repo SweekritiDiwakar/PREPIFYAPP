@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:prepify/screens/onboarding/onboarding_screen.dart';
-import 'package:prepify/screens/auth/login_screen.dart';
-import 'package:prepify/providers/user_profile_provider.dart';
-import 'package:prepify/services/auth_service.dart';
-import 'package:prepify/navigation/nav_bar.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -42,29 +36,31 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Navigate after a fixed 3-second delay as per requirements
+    // Navigate after a fixed 3-second delay
     Future.delayed(const Duration(seconds: 3), () async {
       if (!mounted) return;
       
       final prefs = await SharedPreferences.getInstance();
-      // Debug: Force onboarding to show by ignoring saved preference
-      final onboardingCompleted = false; // prefs.getBool('onboarding_completed') ?? false;
+
+      // Always show onboarding unless user has explicitly completed it
+      // on this exact app version. Bump currentVersion to force re-show.
+      const currentVersion = 'v1.2';
+      final seenVersion = prefs.getString('onboarding_version') ?? '';
+      if (seenVersion != currentVersion) {
+        await prefs.remove('onboarding_completed');
+        await prefs.setString('onboarding_version', currentVersion);
+      }
+
+      final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
 
       if (!onboardingCompleted) {
-        debugPrint('SplashScreen: First time user, going to Onboarding');
+        debugPrint('SplashScreen: Showing onboarding');
         Get.offAllNamed('/onboarding');
         return;
       }
 
-      if (AuthService.currentUser != null) {
-        debugPrint('SplashScreen: User logged in, going to Home');
-        await context.read<UserProfileProvider>().initializeCurrentUser();
-        if (!mounted) return;
-        Get.offAll(() => MainScreen(showDashboard: true));
-      } else {
-        debugPrint('SplashScreen: No user, going to Login');
-        Get.offAllNamed('/login');
-      }
+      debugPrint('SplashScreen: Going to Login screen');
+      Get.offAllNamed('/login');
     });
   }
 

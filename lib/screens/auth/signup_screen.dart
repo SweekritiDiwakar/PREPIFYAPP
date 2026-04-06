@@ -99,6 +99,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: signupController.nameController,
+                        style: const TextStyle(color: Colors.black, fontSize: 14),
                         decoration: _buildInputDecoration(hintText: 'Your full name'),
                         validator: signupController.validateName,
                       ),
@@ -109,6 +110,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: signupController.emailController,
+                        style: const TextStyle(color: Colors.black, fontSize: 14),
                         decoration: _buildInputDecoration(hintText: 'abc@gmail.com'),
                         validator: signupController.validateEmail,
                       ),
@@ -121,6 +123,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         () => TextFormField(
                           controller: signupController.passwordController,
                           obscureText: signupController.obscurePassword.value,
+                          style: const TextStyle(color: Colors.black, fontSize: 14),
                           decoration: _buildInputDecoration(hintText: 'At least 8 characters'),
                           validator: signupController.validatePassword,
                         ),
@@ -134,6 +137,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         () => TextFormField(
                           controller: signupController.confirmPasswordController,
                           obscureText: signupController.obscureConfirmPassword.value,
+                          style: const TextStyle(color: Colors.black, fontSize: 14),
                           decoration: _buildInputDecoration(hintText: 'Confirm password'),
                           validator: signupController.validateConfirmPassword,
                         ),

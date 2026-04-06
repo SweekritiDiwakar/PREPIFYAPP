@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:prepify/models/recipe.dart';
 import 'package:prepify/services/recipe_service.dart';
 
@@ -30,7 +30,8 @@ class RecipeProvider extends ChangeNotifier {
       _lastDocument = page.lastDocument;
       _hasMore = page.hasMore;
     } catch (e) {
-      _errorMessage = 'Unable to load recipes right now.';
+      debugPrint('RecipeProvider.fetchRecipes error: $e');
+      _errorMessage = 'Unable to load recipes. Please check your connection.';
     } finally {
       _setLoading(false);
     }
@@ -58,6 +59,7 @@ class RecipeProvider extends ChangeNotifier {
 
   Future<bool> uploadRecipe({
     required String title,
+    required String category,
     required List<String> ingredients,
     required String steps,
     required File imageFile,
@@ -68,16 +70,25 @@ class RecipeProvider extends ChangeNotifier {
     try {
       await RecipeService.uploadRecipe(
         title: title,
+        category: category,
         ingredients: ingredients,
         steps: steps,
         imageFile: imageFile,
         username: username,
       );
-      await fetchRecipes();
+      // Refresh list after upload — don't let a fetch failure block success
+      try {
+        await fetchRecipes();
+      } catch (_) {
+        // Fetch failing doesn't mean upload failed
+        _setLoading(false);
+      }
       return true;
     } catch (e) {
-      _errorMessage = 'Failed to upload recipe. Please try again.';
+      debugPrint('RecipeProvider.uploadRecipe error: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
       _setLoading(false);
+      notifyListeners();
       return false;
     }
   }
