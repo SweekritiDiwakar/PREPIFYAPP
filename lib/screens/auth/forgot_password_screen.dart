@@ -1,30 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:prepify/screens/auth/controllers/forgot_password_controller.dart';
-import 'package:prepify/utils/constants/colors.dart';
-import 'package:prepify/utils/constants/app_sizes.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends StatelessWidget {
   const ForgotPasswordScreen({super.key});
-
-  @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
-}
-
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  late final ForgotPasswordController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = ForgotPasswordController();
-  }
-
-  @override
-  void dispose() {
-    controller.onClose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,122 +13,126 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Form(
-              key: controller.formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                   Align(
-                    alignment: Alignment.topLeft,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      onPressed: () => Get.back(),
+            child: GetBuilder<ForgotPasswordController>(
+              init: ForgotPasswordController(),
+              builder: (controller) => Form(
+                key: controller.formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                     Align(
+                      alignment: Alignment.topLeft,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.black),
+                        onPressed: () => Get.back(),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  // Logo & Brand Name
-                  Column(
-                    children: [
-                      Image.asset(
-                        'assets/images/logo.png',
-                        height: 60,
-                        width: 60,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'PREPIFY',
-                        style: TextStyle(
-                            fontFamily: 'Roboto',
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5,
-                          color: Colors.black87,
+                    const SizedBox(height: 10),
+                    // Logo & Brand Name
+                    Column(
+                      children: [
+                        Image.asset(
+                          'assets/images/logo.png',
+                          height: 60,
+                          width: 60,
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 30),
-                  
-                  // Title
-                  const Text(
-                    'Forgot\npassword?',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      height: 1.2,
-                    ),
-                  ),
-                  
-                   const SizedBox(height: 20),
-                   // Divider line
-                  Container(
-                    width: double.infinity,
-                    height: 1,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Email field
-                  Column(
-                    children: [
-                      TextFormField(
-                        controller: controller.emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: _buildInputDecoration(
-                          hintText: 'Email address',
-                          prefixIcon: Icons.email_outlined,
-                        ),
-                        validator: controller.validateEmail,
-                      ),
-                    ],
-                  ),
-                  
-                  const SizedBox(height: 20),
-                   // Divider line
-                  Container(
-                    width: double.infinity,
-                    height: 1,
-                    color: Colors.grey[300],
-                  ),
-                  const SizedBox(height: 30),
-                  
-                  // Reset button
-                  Obx(() => SizedBox(
-                        width: 200,
-                        child: ElevatedButton(
-                          onPressed:
-                              controller.isLoading.value ? null : controller.handleReset,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF9CCC65),
-                            foregroundColor: Colors.black87,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'PREPIFY',
+                          style: TextStyle(
+                              fontFamily: 'Roboto',
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.5,
+                            color: Colors.black87,
                           ),
-                          child: controller.isLoading.value
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.black,
-                                  ),
-                                )
-                              : const Text(
-                                  'Send reset link',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
                         ),
-                      )),
-                   const SizedBox(height: 30),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // Title
+                    const Text(
+                      'Forgot\npassword?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                        height: 1.2,
+                      ),
+                    ),
+                    
+                     const SizedBox(height: 20),
+                     // Divider line
+                    Container(
+                      width: double.infinity,
+                      height: 1,
+                      color: Colors.grey[300],
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Email field
+                    Column(
+                      children: [
+                        TextFormField(
+                          controller: controller.emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(color: Colors.black, fontSize: 14),
+                          decoration: _buildInputDecoration(
+                            hintText: 'Email address',
+                            prefixIcon: Icons.email_outlined,
+                          ),
+                          validator: controller.validateEmail,
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 20),
+                     // Divider line
+                    Container(
+                      width: double.infinity,
+                      height: 1,
+                      color: Colors.grey[300],
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // Reset button
+                    SizedBox(
+                          width: 200,
+                          child: ElevatedButton(
+                            onPressed:
+                                controller.isLoading.value ? null : controller.handleReset,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF9CCC65),
+                              foregroundColor: Colors.black87,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                            ),
+                            child: controller.isLoading.value
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.black,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Send reset link',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                     const SizedBox(height: 30),
+                  ],
+                ),
               ),
             ),
           ),

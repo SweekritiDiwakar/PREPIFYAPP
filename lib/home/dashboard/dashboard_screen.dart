@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:prepify/home/profile_screen/profile_screen.dart';
-import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
+import 'package:prepify/home/profile_screen/user_profile_screen.dart';
 import 'package:prepify/home/grocery_list_screen/grocery_list_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
 import 'package:prepify/home/social_feed/social_feed_list.dart';
+import 'package:prepify/screens/settings_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -16,22 +16,18 @@ class DashboardScreen extends StatelessWidget {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 10),
-                // Top Bar: Avatar, Logo, Bell
+                // Top Bar: Avatar, Logo, Settings
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-                        );
-                      },
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const UserProfileScreen())),
                       child: CircleAvatar(
                         radius: 20,
                         backgroundImage: const AssetImage('assets/images/me.jpeg'),
@@ -59,12 +55,8 @@ class DashboardScreen extends StatelessWidget {
                       ],
                     ),
                     GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => ProfileScreen()),
-                        );
-                      },
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const SettingsScreen())),
                       child: const Icon(Icons.settings, size: 28, color: Colors.black),
                     ),
                   ],
@@ -293,6 +285,9 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildHorizontalDishCard(BuildContext context, String assetPath, String title, String subtitle) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = (screenWidth - 70) * 0.8; // Responsive width
+    
     return GestureDetector(
       onTap: () {
         final recipe = RecipeData.allRecipes[title];
@@ -316,7 +311,7 @@ class DashboardScreen extends StatelessWidget {
         children: [
           Container(
             height: 180,
-            width: 300,
+            width: cardWidth,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               image: DecorationImage(
@@ -326,21 +321,31 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Serif',
-              color: Colors.black,
+          SizedBox(
+            width: cardWidth,
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Serif',
+                color: Colors.black,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+          SizedBox(
+            width: cardWidth,
+            child: Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],

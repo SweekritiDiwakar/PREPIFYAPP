@@ -4,6 +4,7 @@ class Recipe {
   const Recipe({
     required this.id,
     required this.title,
+    required this.category,
     required this.ingredients,
     required this.steps,
     required this.imageUrl,
@@ -15,6 +16,7 @@ class Recipe {
 
   final String id;
   final String title;
+  final String category;
   final List<String> ingredients;
   final String steps;
   final String imageUrl;
@@ -30,6 +32,7 @@ class Recipe {
     return Recipe(
       id: id,
       title: (data['title'] as String?) ?? '',
+      category: (data['category'] as String?) ?? '',
       ingredients: ((data['ingredients'] as List<dynamic>?) ?? [])
           .map((item) => item.toString())
           .where((item) => item.trim().isNotEmpty)
@@ -46,6 +49,7 @@ class Recipe {
   Recipe copyWith({
     String? id,
     String? title,
+    String? category,
     List<String>? ingredients,
     String? steps,
     String? imageUrl,
@@ -57,6 +61,7 @@ class Recipe {
     return Recipe(
       id: id ?? this.id,
       title: title ?? this.title,
+      category: category ?? this.category,
       ingredients: ingredients ?? this.ingredients,
       steps: steps ?? this.steps,
       imageUrl: imageUrl ?? this.imageUrl,

@@ -3,10 +3,6 @@ import 'package:get/get.dart';
 import 'package:prepify/screens/auth/signup_screen.dart';
 import 'package:prepify/screens/auth/controllers/login_controller.dart';
 import 'package:prepify/screens/auth/forgot_password_screen.dart';
-import 'package:prepify/services/auth_service.dart';
-import 'package:prepify/navigation/nav_bar.dart';
-import 'package:provider/provider.dart';
-import 'package:prepify/providers/user_profile_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,15 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     loginController = LoginController();
-    debugPrint('LoginScreen: Initializing... Current User: ${AuthService.currentUser?.email}');
-    // if user already signed in, skip login screen
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (AuthService.currentUser != null) {
-        context.read<UserProfileProvider>().initializeCurrentUser().then((_) {
-          Get.offAll(() => MainScreen(showDashboard: true));
-        });
-      }
-    });
+    debugPrint('LoginScreen: Initializing...');
+    // Remove auto-login behavior - let users explicitly log in
   }
 
   @override
@@ -133,6 +122,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: loginController.emailController,
+                        style: const TextStyle(color: Colors.black, fontSize: 14),
                         decoration: _buildInputDecoration(
                           hintText: 'Email address',
                           prefixIcon: Icons.email_outlined,
@@ -148,6 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         () => TextFormField(
                           controller: loginController.passwordController,
                           obscureText: loginController.obscurePassword.value,
+                          style: const TextStyle(color: Colors.black, fontSize: 14),
                           decoration: _buildInputDecoration(
                             hintText: 'Password',
                             prefixIcon: Icons.lock_outline,
@@ -164,6 +155,26 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           validator: loginController.validatePassword,
                         ),
+                      ),
+                      
+                      const SizedBox(height: 16),
+                      
+                      // Remember Me Checkbox
+                      Row(
+                        children: [
+                          Obx(() => Checkbox(
+                            value: loginController.rememberMe.value,
+                            onChanged: (value) => loginController.rememberMe.value = value ?? false,
+                            activeColor: const Color(0xFF9CCC65),
+                          )),
+                          const Text(
+                            'Remember me',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                       
                       const SizedBox(height: 24),

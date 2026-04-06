@@ -6,6 +6,7 @@ import 'package:prepify/services/social_service.dart';
 import 'package:prepify/providers/social_provider.dart';
 import 'package:prepify/home/social_feed/comments_bottom_sheet.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:prepify/screens/public_profile_screen.dart';
 
 class SocialFeedList extends StatelessWidget {
   const SocialFeedList({super.key});
@@ -58,9 +59,11 @@ class _PostCardState extends State<PostCard> {
   @override
   void initState() {
     super.initState();
-    // Check initial like status
+    // Check initial like and favorite status
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SocialProvider>().checkLikeStatus(widget.post.id, currentUserId);
+      final provider = context.read<SocialProvider>();
+      provider.checkLikeStatus(widget.post.id, currentUserId);
+      provider.checkFavoriteStatus(widget.post.id, currentUserId);
     });
   }
 
@@ -74,8 +77,9 @@ class _PostCardState extends State<PostCard> {
   }
 
   void _sharePost() {
-    Share.share(
-      'Check out ${widget.post.username}\'s recipe on Prepify!\n\n"${widget.post.description}"',
+    final categoryText = widget.post.category.isNotEmpty ? '\nCategory: ${widget.post.category}' : '';
+    SharePlus.instance.share(
+      ShareParams(text: 'Check out ${widget.post.username}\'s recipe on Prepify!$categoryText\n\n"${widget.post.description}"'),
     );
   }
 
@@ -91,7 +95,7 @@ class _PostCardState extends State<PostCard> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             offset: const Offset(0, 4),
             blurRadius: 10,
           ),
@@ -103,19 +107,29 @@ class _PostCardState extends State<PostCard> {
           // Header
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Colors.grey,
-                  child: Icon(Icons.person, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  widget.post.username,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              ],
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PublicProfileScreen(userId: widget.post.userId),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: Colors.grey,
+                    child: Icon(Icons.person, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    widget.post.username,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ],
+              ),
             ),
           ),
           
@@ -132,6 +146,29 @@ class _PostCardState extends State<PostCard> {
               ),
             ),
             
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                if (widget.post.category.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F8E9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      widget.post.category,
+                      style: const TextStyle(
+                        color: Color(0xFF558B2F),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           // Actions
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -143,6 +180,17 @@ class _PostCardState extends State<PostCard> {
                     color: isLiked ? Colors.red : Colors.black87,
                   ),
                   onPressed: () => socialProvider.toggleLike(widget.post.id, currentUserId),
+                ),
+                IconButton(
+                  icon: Icon(
+                    socialProvider.isFavorited(widget.post.id)
+                        ? Icons.bookmark
+                        : Icons.bookmark_border,
+                    color: socialProvider.isFavorited(widget.post.id)
+                        ? const Color(0xFF9CCC65)
+                        : Colors.black87,
+                  ),
+                  onPressed: () => socialProvider.toggleFavorite(widget.post.id, currentUserId),
                 ),
                 IconButton(
                   icon: const Icon(Icons.chat_bubble_outline, color: Colors.black87),

@@ -6,6 +6,7 @@ class Post {
   final String username;
   final String imageUrl;
   final String description;
+  final String category;
   final Timestamp? timestamp;
   final int likesCount;
 
@@ -15,6 +16,7 @@ class Post {
     required this.username,
     required this.imageUrl,
     required this.description,
+    this.category = '',
     this.timestamp,
     this.likesCount = 0,
   });
@@ -27,6 +29,7 @@ class Post {
       imageUrl: data['imageUrl'] ?? '',
       description: data['description'] ?? '',
       timestamp: data['timestamp'] as Timestamp?,
+      category: (data['category'] as String?) ?? '',
       likesCount: (data['likesCount'] as num?)?.toInt() ?? 0,
     );
   }
@@ -37,6 +40,7 @@ class Post {
       'username': username,
       'imageUrl': imageUrl,
       'description': description,
+      'category': category,
       'timestamp': timestamp ?? FieldValue.serverTimestamp(),
       'likesCount': likesCount,
     };
@@ -48,6 +52,7 @@ class Post {
     String? username,
     String? imageUrl,
     String? description,
+    String? category,
     Timestamp? timestamp,
     int? likesCount,
   }) {
@@ -57,6 +62,7 @@ class Post {
       username: username ?? this.username,
       imageUrl: imageUrl ?? this.imageUrl,
       description: description ?? this.description,
+      category: category ?? this.category,
       timestamp: timestamp ?? this.timestamp,
       likesCount: likesCount ?? this.likesCount,
     );

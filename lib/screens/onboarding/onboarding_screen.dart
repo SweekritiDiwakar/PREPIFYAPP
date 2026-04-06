@@ -3,9 +3,6 @@ import 'package:get/get.dart';
 import 'package:prepify/utils/constants/colors.dart';
 import 'package:prepify/utils/constants/text_styles.dart';
 import 'package:prepify/utils/constants/app_sizes.dart';
-import 'package:prepify/screens/auth/login_screen.dart';
-import 'package:prepify/services/auth_service.dart';
-import 'package:prepify/navigation/nav_bar.dart';
 import 'package:prepify/screens/onboarding/onboarding_controller.dart';
 import 'package:prepify/screens/onboarding/onboarding_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,7 +25,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       description: "Explore thousands of delicious recipes from around the world, tailored to your taste preferences.",
     ),
     OnboardingPageModel(
-      image: "assets/images/#VISIO~1.JPG",
+      image: "assets/images/butternaan.jpeg",
       title: "Plan Your Meals",
       description: "Create meal plans for the week and never wonder what to cook again.",
     ),

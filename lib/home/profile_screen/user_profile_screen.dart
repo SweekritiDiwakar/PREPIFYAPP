@@ -4,10 +4,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prepify/home/profile_screen/controllers/profile_controller.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
-import 'package:provider/provider.dart';
+import 'package:prepify/home/social_feed/social_feed_list.dart';
+import 'package:prepify/models/post.dart';
 import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:prepify/services/social_service.dart';
+import 'package:provider/provider.dart';
 import 'package:prepify/models/recipe.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:prepify/screens/user_search_screen.dart';
+import 'package:prepify/screens/favorites_screen.dart';
+import 'package:prepify/screens/settings_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -24,6 +30,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Refresh user profile data when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<UserProfileProvider>().refresh();
+    });
   }
 
   @override
@@ -34,6 +44,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     return Scaffold(
       backgroundColor: Colors.white,
       body: NestedScrollView(
@@ -53,14 +64,43 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
               ),
               centerTitle: true,
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.more_horiz, color: Colors.black),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => ProfileScreen()),
-                    );
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'search':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const UserSearchScreen()),
+                        );
+                        break;
+                      case 'favorites':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+                        );
+                        break;
+                      case 'settings':
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                        );
+                        break;
+                    }
                   },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'search',
+                      child: Text('Search Users'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'favorites',
+                      child: Text('My Favorites'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'settings',
+                      child: Text('Settings'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -88,6 +128,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'serif',
+                      color: Colors.black,
                     ),
                   )),
                   const SizedBox(height: 8),
@@ -180,11 +221,55 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
           controller: _tabController,
           children: [
             _buildRecipeGrid(),
-            const Center(child: Text("Liked Recipes Screen")),
-            const Center(child: Text("Collections Screen")),
+            _buildLikedPostTab(currentUserId),
+            _buildFavoritesTab(currentUserId),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLikedPostTab(String currentUserId) {
+    return StreamBuilder<List<Post>>(
+      stream: SocialService.streamUserLikedPosts(currentUserId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final posts = snapshot.data ?? [];
+        if (posts.isEmpty) {
+          return const Center(child: Text('No liked posts yet.', style: TextStyle(color: Colors.black54)));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: posts.length,
+          itemBuilder: (context, index) {
+            return PostCard(post: posts[index]);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFavoritesTab(String currentUserId) {
+    return StreamBuilder<List<Post>>(
+      stream: SocialService.streamUserFavoritePosts(currentUserId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final posts = snapshot.data ?? [];
+        if (posts.isEmpty) {
+          return const Center(child: Text('No saved recipes yet.', style: TextStyle(color: Colors.black54)));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: posts.length,
+          itemBuilder: (context, index) {
+            return PostCard(post: posts[index]);
+          },
+        );
+      },
     );
   }
 
@@ -214,15 +299,42 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   Widget _buildRecipeGrid() {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      // No orderBy — avoids composite index requirement. Sort client-side.
       stream: FirebaseFirestore.instance
           .collection('recipes')
           .where('createdBy', isEqualTo: currentUserId)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(
+            child: Text('Could not load recipes.', style: TextStyle(color: Colors.black54)),
+          );
+        }
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final recipes = snapshot.data!.docs.map((doc) => Recipe.fromFirestore(doc.id, doc.data())).toList();
-        if (recipes.isEmpty) return const Center(child: Text("No recipes yet."));
+
+        final recipes = snapshot.data!.docs
+            .map((doc) {
+              try {
+                return Recipe.fromFirestore(doc.id, doc.data());
+              } catch (_) {
+                return null;
+              }
+            })
+            .whereType<Recipe>()
+            .toList();
+
+        // Sort client-side by createdAt descending
+        recipes.sort((a, b) {
+          final aTs = a.createdAt?.seconds ?? 0;
+          final bTs = b.createdAt?.seconds ?? 0;
+          return bTs.compareTo(aTs);
+        });
+
+        if (recipes.isEmpty) {
+          return const Center(
+            child: Text('No recipes yet.', style: TextStyle(color: Colors.black54)),
+          );
+        }
 
         return GridView.builder(
           padding: const EdgeInsets.all(16),
@@ -247,10 +359,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
               child: Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
-                  image: recipe.imageUrl.isNotEmpty ? DecorationImage(
-                    image: NetworkImage(recipe.imageUrl),
-                    fit: BoxFit.cover,
-                  ) : null,
+                  image: recipe.imageUrl.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(recipe.imageUrl),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
                   color: Colors.grey[300],
                 ),
                 child: Container(
@@ -261,7 +375,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.7),
+                        Colors.black.withValues(alpha: 0.7),
                       ],
                     ),
                   ),

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:prepify/models/stock_item.dart';
 import 'package:prepify/services/user_profile_service.dart';
 
@@ -26,10 +27,14 @@ class StockService {
     return uid;
   }
 
-  static Stream<List<StockItem>> streamStockItems() {
-    return Stream.fromFuture(UserProfileService.getCurrentUserHouseholdId())
-        .asyncExpand(
-      (householdId) => _stock
+  static Stream<List<StockItem>> streamStockItems() async* {
+    try {
+      final householdId = await UserProfileService.getCurrentUserHouseholdId();
+      if (householdId.isEmpty) {
+        yield [];
+        return;
+      }
+      yield* _stock
           .where('householdId', isEqualTo: householdId)
           .orderBy('updatedAt', descending: true)
           .snapshots()
@@ -37,8 +42,11 @@ class StockService {
             (snap) => snap.docs
                 .map((doc) => StockItem.fromFirestore(doc.id, doc.data()))
                 .toList(),
-          ),
-    );
+          );
+    } catch (e) {
+      debugPrint('StockService.streamStockItems error: $e');
+      yield [];
+    }
   }
 
   static Future<void> addOrUpdateStock({
