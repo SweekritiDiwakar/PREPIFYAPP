@@ -16,6 +16,7 @@ class AddRecipeScreen extends StatefulWidget {
 
 class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _stepsController = TextEditingController();
   final List<TextEditingController> _ingredientsControllers = [
     TextEditingController()
@@ -34,6 +35,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose();
     _stepsController.dispose();
     for (final c in _ingredientsControllers) {
       c.dispose();
@@ -68,13 +70,15 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Future<void> _handleUpload() async {
     final title = _titleController.text.trim();
-    final steps = _stepsController.text.trim();
+    final description = _descriptionController.text.trim();
+    final stepsString = _stepsController.text.trim();
+    final steps = stepsString.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
     final ingredients = _ingredientsControllers
         .map((c) => c.text.trim())
         .where((item) => item.isNotEmpty)
         .toList();
 
-    if (title.isEmpty || steps.isEmpty || ingredients.isEmpty) {
+    if (title.isEmpty || steps.isEmpty || ingredients.isEmpty || description.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields.')),
       );
@@ -96,7 +100,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     try {
       final success = await provider.uploadRecipe(
         title: title,
-        category: _selectedCategory,
+        description: description,
+        tags: [_selectedCategory],
         ingredients: ingredients,
         steps: steps,
         imageFile: _selectedImage!,
@@ -206,7 +211,11 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
               const SizedBox(height: 12),
               _inputField(controller: _titleController, hint: "e.g. Butter chicken and naan"),
               const SizedBox(height: 24),
-              _sectionTitle("Category"),
+              _sectionTitle("Description"),
+              const SizedBox(height: 12),
+              _inputField(controller: _descriptionController, hint: "e.g. A creamy, rich and comforting dish...", maxLines: 3),
+              const SizedBox(height: 24),
+              _sectionTitle("Category (Tag)"),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),

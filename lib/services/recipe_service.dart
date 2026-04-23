@@ -2,18 +2,17 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:prepify/models/recipe.dart';
-import 'package:prepify/services/user_profile_service.dart';
+import 'package:prepify/services/cloudinary_service.dart';
 import 'package:prepify/services/social_service.dart';
+import 'package:prepify/services/gamification_service.dart';
 
 class RecipeService {
   RecipeService._();
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static CollectionReference<Map<String, dynamic>> get _recipes =>
       _db.collection('recipes');
@@ -22,9 +21,10 @@ class RecipeService {
 
   static Future<void> uploadRecipe({
     required String title,
-    required String category,
+    required String description,
     required List<String> ingredients,
-    required String steps,
+    required List<String> steps,
+    required List<String> tags,
     required File imageFile,
     required String username,
   }) async {
@@ -34,102 +34,79 @@ class RecipeService {
     }
 
     final safeTitle = title.trim();
+    final safeDescription = description.trim();
     final safeIngredients = ingredients
         .map((item) => item.trim())
         .where((item) => item.isNotEmpty)
         .toList();
-    final safeSteps = steps.trim();
+    final safeSteps = steps
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final safeTags = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
 
     if (safeTitle.isEmpty || safeIngredients.isEmpty || safeSteps.isEmpty) {
       throw ArgumentError('Please fill all recipe fields.');
     }
 
-    final storagePath =
-        'recipes/${currentUser.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final ref = _storage.ref().child(storagePath);
-    try {
-      await ref.putFile(imageFile);
-    } catch (e) {
-      debugPrint('RecipeService: Storage upload failed: $e');
-      throw StateError('Image upload failed. Check your internet connection and try again.');
-    }
-    final imageUrl = await ref.getDownloadURL();
-
-    if (imageUrl.isEmpty) {
-      throw StateError('Image upload failed. Please try again.');
-    }
-
-    String householdId = '';
-    try {
-      householdId = await UserProfileService.getCurrentUserHouseholdId();
-    } catch (e) {
-      // Create a default household if none exists
-      householdId = currentUser.uid;
-      await UserProfileService.updateHouseholdId(uid: currentUser.uid, householdId: householdId);
-    }
+    final imageUrl = await CloudinaryService.uploadImage(imageFile);
 
     final userId = currentUser.uid;
     await _recipes.add({
-      'id': '',
       'title': safeTitle,
-      'category': category,
+      'description': safeDescription,
       'ingredients': safeIngredients,
       'steps': safeSteps,
       'imageUrl': imageUrl,
-      'userId': userId,
       'createdBy': userId,
-      'householdId': householdId,
       'createdAt': FieldValue.serverTimestamp(),
       'likes': 0,
-      'likesCount': 0,
+      'tags': safeTags,
     });
 
-    await SocialService.createPost(
-      imageUrl: imageUrl,
-      description: 'Check out my new recipe: $safeTitle!\n\nCategory: $category\n\nSteps:\n$safeSteps',
-      category: category,
-      username: username,
-    );
+    try {
+      await SocialService.createPost(
+        imageUrl: imageUrl,
+        description:
+            'Check out my new recipe: $safeTitle!\n\n$safeDescription\n\nTags: ${safeTags.join(', ')}',
+        category: safeTags.isNotEmpty ? safeTags.first : 'General',
+        username: username,
+      );
 
-    // Badge awarding is now handled by UserProfileProvider
+      // Award gamification badge for uploading a recipe
+      await GamificationService.awardBadge('recipe_creator');
+    } catch (e) {
+      debugPrint('Error creating social post or awarding badge: $e');
+    }
+  }
+
+  // Stream for real-time updates (e.g. for user's own recipes)
+  static Stream<List<Recipe>> streamUserRecipes() {
+    final userId = _auth.currentUser?.uid;
+    if (userId == null) return Stream.value([]);
+
+    return _recipes
+        .where('createdBy', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => Recipe.fromFirestore(doc.id, doc.data()))
+              .toList(),
+        );
   }
 
   static Future<RecipePageResult> fetchRecipesPage({
     DocumentSnapshot<Map<String, dynamic>>? startAfter,
     int limit = pageSize,
   }) async {
-    String householdId = '';
     try {
-      householdId = await UserProfileService.getCurrentUserHouseholdId();
-    } catch (e) {
-      debugPrint('RecipeService: Could not get householdId: $e');
-    }
-
-    try {
-      Query<Map<String, dynamic>> query;
-      if (householdId.isNotEmpty) {
-        // Get both household recipes and user's personal recipes
-        final householdSnap = await _recipes
-            .where('householdId', isEqualTo: householdId)
-            .limit(limit)
-            .get();
-            
-        final userSnap = await _recipes
-            .where('createdBy', isEqualTo: _auth.currentUser?.uid ?? '')
-            .limit(limit)
-            .get();
-            
-        // Combine and deduplicate results
-        final allDocs = {...householdSnap.docs, ...userSnap.docs}.toList();
-        
-        return RecipePageResult(
-          recipes: allDocs.map((doc) => Recipe.fromFirestore(doc.id, doc.data())).toList(),
-          hasMore: false,
-          lastDocument: allDocs.isNotEmpty ? allDocs.last : null,
-        );
-      } else {
-        query = _recipes.orderBy('createdAt', descending: true).limit(limit);
-      }
+      Query<Map<String, dynamic>> query = _recipes
+          .orderBy('createdAt', descending: true)
+          .limit(limit);
 
       if (startAfter != null) {
         query = query.startAfterDocument(startAfter);
@@ -138,23 +115,8 @@ class RecipeService {
       final snap = await query.get();
 
       var recipes = snap.docs
-          .map((doc) {
-            try {
-              return Recipe.fromFirestore(doc.id, doc.data());
-            } catch (e) {
-              debugPrint('RecipeService: Failed to parse recipe ${doc.id}: $e');
-              return null;
-            }
-          })
-          .whereType<Recipe>()
+          .map((doc) => Recipe.fromFirestore(doc.id, doc.data()))
           .toList();
-
-      // Sort client-side by createdAt descending
-      recipes.sort((a, b) {
-        final aTs = a.createdAt?.seconds ?? 0;
-        final bTs = b.createdAt?.seconds ?? 0;
-        return bTs.compareTo(aTs);
-      });
 
       return RecipePageResult(
         recipes: recipes,
@@ -167,10 +129,65 @@ class RecipeService {
     }
   }
 
+  // Search and filter recipes
+  static Future<List<Recipe>> searchRecipes({
+    String? queryText,
+    List<String>? ingredientsList,
+    List<String>? tagsList,
+  }) async {
+    try {
+      // Note: Firestore does not support multiple array-contains.
+      // A common workaround is fetching and client-side filtering if complex, or using a third-party service like Algolia.
+      // Here we will do basic fetching and client-side filtering for simplicity and robustness.
+      final snap = await _recipes.orderBy('createdAt', descending: true).get();
+
+      var recipes = snap.docs
+          .map((doc) => Recipe.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      if (queryText != null && queryText.isNotEmpty) {
+        final queryLower = queryText.toLowerCase();
+        recipes = recipes
+            .where(
+              (r) =>
+                  r.title.toLowerCase().contains(queryLower) ||
+                  r.description.toLowerCase().contains(queryLower),
+            )
+            .toList();
+      }
+
+      if (ingredientsList != null && ingredientsList.isNotEmpty) {
+        recipes = recipes
+            .where(
+              (r) => ingredientsList.every(
+                (ing) => r.ingredients.any(
+                  (ri) => ri.toLowerCase().contains(ing.toLowerCase()),
+                ),
+              ),
+            )
+            .toList();
+      }
+
+      if (tagsList != null && tagsList.isNotEmpty) {
+        recipes = recipes
+            .where(
+              (r) => tagsList.every(
+                (tag) =>
+                    r.tags.any((rt) => rt.toLowerCase() == tag.toLowerCase()),
+              ),
+            )
+            .toList();
+      }
+
+      return recipes;
+    } catch (e) {
+      debugPrint('RecipeService.searchRecipes error: $e');
+      rethrow;
+    }
+  }
+
   static Future<void> likeRecipe(String recipeId) async {
-    await _recipes.doc(recipeId).update({
-      'likes': FieldValue.increment(1),
-    });
+    await _recipes.doc(recipeId).update({'likes': FieldValue.increment(1)});
   }
 }
 

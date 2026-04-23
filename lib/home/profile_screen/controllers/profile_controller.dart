@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prepify/services/auth_service.dart';
 
 class ProfileController extends GetxController {

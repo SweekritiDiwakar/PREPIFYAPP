@@ -5,6 +5,7 @@ import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.
 import 'package:prepify/home/profile_screen/recipe_details/recipe_data.dart';
 import 'package:prepify/home/social_feed/social_feed_list.dart';
 import 'package:prepify/screens/settings_screen.dart';
+import 'package:prepify/screens/main_chat_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -13,6 +14,17 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const MainChatScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFFD84315),
+        tooltip: 'Open chat',
+        child: const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 26),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(

@@ -42,14 +42,8 @@ class _SplashScreenState extends State<SplashScreen>
       
       final prefs = await SharedPreferences.getInstance();
 
-      // Always show onboarding unless user has explicitly completed it
-      // on this exact app version. Bump currentVersion to force re-show.
-      const currentVersion = 'v1.2';
-      final seenVersion = prefs.getString('onboarding_version') ?? '';
-      if (seenVersion != currentVersion) {
-        await prefs.remove('onboarding_completed');
-        await prefs.setString('onboarding_version', currentVersion);
-      }
+      // Check if user has completed onboarding
+
 
       final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
 

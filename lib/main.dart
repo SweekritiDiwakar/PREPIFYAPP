@@ -13,8 +13,9 @@ import 'package:prepify/screens/onboarding/onboarding_screen.dart';
 import 'package:prepify/screens/auth/login_screen.dart';
 import 'package:prepify/navigation/nav_bar.dart';
 import 'package:prepify/services/push_notification_service.dart';
-import 'package:prepify/utils/constants/app_theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+//Firebase is initialized even when the app is in the background.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
@@ -24,13 +25,19 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await dotenv.load(fileName: ".env"); // 🔥 ADD THIS
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   // Initialize push notifications in the background — do NOT await this,
   // otherwise a slow/failing FCM token request will block the entire app.
   PushNotificationService.initialize();
+
   runApp(const MyApp());
 }
 
@@ -79,4 +86,4 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
-}
+} 

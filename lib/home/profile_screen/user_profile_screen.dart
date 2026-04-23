@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prepify/home/profile_screen/controllers/profile_controller.dart';
-import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/recipe_details/recipe_detail_screen.dart';
 import 'package:prepify/home/social_feed/social_feed_list.dart';
 import 'package:prepify/models/post.dart';

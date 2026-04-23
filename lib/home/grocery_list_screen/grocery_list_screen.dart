@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/home/grocery_list_screen/add_item_widget.dart';
 import 'package:prepify/home/grocery_list_screen/firestore_service.dart';
+import 'package:prepify/home/household_screen/firestore_service.dart';
 import 'package:prepify/services/nepali_calendar_service.dart';
 
 class GroceryListScreen extends StatefulWidget {
@@ -107,87 +109,139 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }
 
   Future<void> _showInviteMemberDialog(String listId) async {
-    final controller = TextEditingController();
+    final joinCodeController = TextEditingController();
+    bool isJoining = false;
+
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Invite Member'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'Enter member email',
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Or share this code with household members:',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: FutureBuilder<String>(
-                future: _getHouseholdInviteCode(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const CircularProgressIndicator();
-                  }
-                  return Text(
-                    snapshot.data!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Household Options'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Invite members', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Share this code with your household members:'),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                  ),
+                  child: FutureBuilder<String>(
+                    future: _getHouseholdInviteCode(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(
+                          child: SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      }
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            snapshot.data!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          if (snapshot.data! != 'NO HOUSEHOLD')
+                            IconButton(
+                              icon: const Icon(Icons.copy, size: 20),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: snapshot.data!));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Copied!')),
+                                );
+                              },
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text('Join a Household', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: joinCodeController,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter code',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
                     ),
-                  );
-                },
-              ),
+                    onPressed: isJoining
+                        ? null
+                        : () async {
+                            final code = joinCodeController.text.trim().toUpperCase();
+                            if (code.isEmpty) return;
+                            setState(() => isJoining = true);
+                            try {
+                              await HouseholdFirestoreService.joinHouseholdByInviteCode(code);
+                              if (context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Successfully joined household!')),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                                );
+                              }
+                            } finally {
+                              if (mounted) setState(() => isJoining = false);
+                            }
+                          },
+                    child: Text(isJoining ? 'Joining...' : 'Join Household'),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final navigator = Navigator.of(context);
-              final messenger = ScaffoldMessenger.of(context);
-              try {
-                await GroceryFirestoreService.addMemberByEmail(
-                  listId: listId,
-                  email: controller.text,
-                );
-                navigator.pop();
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Member added to list.')),
-                );
-              } catch (e) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-                );
-              }
-            },
-            child: const Text('Invite'),
-          ),
-        ],
-      ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        });
+      },
     );
-    controller.dispose();
   }
 
   Future<String> _getHouseholdInviteCode() async {
-    // This would typically come from your household service
-    return 'GROCERY-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    try {
+      final householdDoc = await HouseholdFirestoreService.fetchUserHousehold();
+      if (householdDoc != null) {
+        return (householdDoc.data()?['inviteCode'] as String?) ?? 'NO CODE';
+      }
+    } catch (_) {}
+    return 'NO HOUSEHOLD';
   }
 
   @override

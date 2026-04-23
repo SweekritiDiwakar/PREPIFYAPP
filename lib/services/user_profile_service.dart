@@ -2,15 +2,14 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:prepify/models/app_user.dart';
+import 'package:prepify/services/cloudinary_service.dart';
 
 class UserProfileService {
   UserProfileService._();
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
@@ -77,15 +76,7 @@ class UserProfileService {
     required String uid,
     required File imageFile,
   }) async {
-    final path = 'profile_images/$uid/${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final ref = _storage.ref().child(path);
-    try {
-      await ref.putFile(imageFile);
-    } catch (e) {
-      throw StateError('Image upload failed. Please check your connection and try again.');
-    }
-    final downloadUrl = await ref.getDownloadURL();
-
+    final downloadUrl = await CloudinaryService.uploadImage(imageFile);
     await _users.doc(uid).update({'profileImage': downloadUrl});
     final snap = await _users.doc(uid).get();
     return AppUser.fromFirestore(uid, snap.data() ?? <String, dynamic>{});

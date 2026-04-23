@@ -4,24 +4,24 @@ class UserModel {
   final String uid;
   final String username;
   final String email;
-  final String bio;
   final String photoUrl;
-  final List<String> followers;
-  final List<String> following;
+  final String bio;
   final bool isPrivate;
   final bool showFavoritesPublicly;
   final DateTime createdAt;
+
+  // Backward-compatible aliases used in other parts of the app.
+  String get name => username;
+  String get profileImage => photoUrl;
 
   UserModel({
     required this.uid,
     required this.username,
     required this.email,
-    required this.bio,
     required this.photoUrl,
-    required this.followers,
-    required this.following,
-    required this.isPrivate,
-    required this.showFavoritesPublicly,
+    this.bio = '',
+    this.isPrivate = false,
+    this.showFavoritesPublicly = true,
     required this.createdAt,
   });
 
@@ -29,14 +29,12 @@ class UserModel {
     final data = doc.data() as Map<String, dynamic>;
     return UserModel(
       uid: doc.id,
-      username: data['username'] ?? '',
+      username: (data['username'] ?? data['name'] ?? '').toString(),
       email: data['email'] ?? '',
-      bio: data['bio'] ?? '',
-      photoUrl: data['photoUrl'] ?? '',
-      followers: List<String>.from(data['followers'] ?? []),
-      following: List<String>.from(data['following'] ?? []),
-      isPrivate: data['isPrivate'] ?? false,
-      showFavoritesPublicly: data['showFavoritesPublicly'] ?? true,
+      photoUrl: (data['photoUrl'] ?? data['profileImage'] ?? '').toString(),
+      bio: (data['bio'] ?? '').toString(),
+      isPrivate: (data['isPrivate'] as bool?) ?? false,
+      showFavoritesPublicly: (data['showFavoritesPublicly'] as bool?) ?? true,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -44,11 +42,11 @@ class UserModel {
   Map<String, dynamic> toFirestore() {
     return {
       'username': username,
+      'name': username,
       'email': email,
-      'bio': bio,
       'photoUrl': photoUrl,
-      'followers': followers,
-      'following': following,
+      'profileImage': photoUrl,
+      'bio': bio,
       'isPrivate': isPrivate,
       'showFavoritesPublicly': showFavoritesPublicly,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -57,25 +55,25 @@ class UserModel {
 
   UserModel copyWith({
     String? username,
+    String? name,
     String? email,
-    String? bio,
     String? photoUrl,
-    List<String>? followers,
-    List<String>? following,
+    String? profileImage,
+    String? bio,
     bool? isPrivate,
     bool? showFavoritesPublicly,
+    DateTime? createdAt,
   }) {
     return UserModel(
       uid: uid,
-      username: username ?? this.username,
+      username: username ?? name ?? this.username,
       email: email ?? this.email,
+      photoUrl: photoUrl ?? profileImage ?? this.photoUrl,
       bio: bio ?? this.bio,
-      photoUrl: photoUrl ?? this.photoUrl,
-      followers: followers ?? this.followers,
-      following: following ?? this.following,
       isPrivate: isPrivate ?? this.isPrivate,
-      showFavoritesPublicly: showFavoritesPublicly ?? this.showFavoritesPublicly,
-      createdAt: createdAt,
+      showFavoritesPublicly:
+          showFavoritesPublicly ?? this.showFavoritesPublicly,
+      createdAt: createdAt ?? this.createdAt,
     );
   }
 }

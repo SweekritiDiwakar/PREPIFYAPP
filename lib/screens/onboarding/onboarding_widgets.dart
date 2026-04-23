@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:prepify/utils/constants/colors.dart';
 import 'package:prepify/utils/constants/text_styles.dart';
 import 'package:prepify/utils/constants/app_sizes.dart';
 
