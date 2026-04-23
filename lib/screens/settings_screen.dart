@@ -6,7 +6,6 @@ import 'package:prepify/services/user_service.dart';
 import 'package:prepify/services/auth_service.dart';
 import 'package:prepify/screens/auth/login_screen.dart';
 import 'package:prepify/providers/theme_provider.dart';
-import 'package:prepify/home/household_screen/firestore_service.dart';
 import 'package:provider/provider.dart';
 import 'package:get/get.dart';
 
@@ -21,10 +20,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   UserModel? _user;
   bool _isLoading = true;
   bool _notifications = true;
-  String _householdInviteCode = '';
-  final TextEditingController _joinCodeController = TextEditingController();
-  bool _joiningHousehold = false;
-
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
 
@@ -38,7 +33,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _usernameController.dispose();
     _bioController.dispose();
-    _joinCodeController.dispose();
     super.dispose();
   }
 
@@ -46,20 +40,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
     if (currentUserId != null) {
       final user = await UserService.getUserById(currentUserId);
-      // Also load household invite code
-      String inviteCode = '';
-      try {
-        final householdDoc = await HouseholdFirestoreService.fetchUserHousehold();
-        if (householdDoc != null) {
-          inviteCode = (householdDoc.data()?['inviteCode'] as String?) ?? '';
-        }
-      } catch (_) {}
       if (user != null && mounted) {
         setState(() {
           _user = user;
           _usernameController.text = user.username;
           _bioController.text = user.bio;
-          _householdInviteCode = inviteCode;
           _isLoading = false;
         });
       }
@@ -98,27 +83,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _joinHousehold() async {
-    final code = _joinCodeController.text.trim().toUpperCase();
-    if (code.isEmpty) {
-      Get.snackbar('Error', 'Please enter an invite code');
-      return;
-    }
-    setState(() => _joiningHousehold = true);
-    try {
-      await HouseholdFirestoreService.joinHouseholdByInviteCode(code);
-      _joinCodeController.clear();
-      // Reload to get new invite code
-      await _loadUserData();
-      Get.snackbar('Success', 'Joined household successfully');
-    } catch (e) {
-      Get.snackbar('Error', e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => _joiningHousehold = false);
-    }
-  }
-
-  Future<void> _logout() async {    await AuthService.signOut();
+  Future<void> _logout() async {
+    await AuthService.signOut();
     Get.offAll(() => const LoginScreen());
   }
 
@@ -127,7 +93,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Account'),
-        content: const Text('Are you sure you want to delete your account? This action cannot be undone.'),
+        content: const Text(
+          'Are you sure you want to delete your account? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -154,9 +122,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -180,86 +146,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Preferences'),
             Consumer<ThemeProvider>(
               builder: (context, themeProvider, _) {
-                return _buildSwitch('Dark Mode', themeProvider.isDarkMode, (value) => themeProvider.toggleDarkMode());
-              }
+                return _buildSwitch(
+                  'Dark Mode',
+                  themeProvider.isDarkMode,
+                  (value) => themeProvider.toggleDarkMode(),
+                );
+              },
             ),
-            _buildSwitch('Notifications', _notifications, (value) => setState(() => _notifications = value)),
+            _buildSwitch(
+              'Notifications',
+              _notifications,
+              (value) => setState(() => _notifications = value),
+            ),
 
             // Privacy Section
             _buildSectionHeader('Privacy'),
-            _buildSwitch('Private Profile', _user?.isPrivate ?? false, (value) => _togglePrivacy('isPrivate', value)),
-            _buildSwitch('Show Favorites Publicly', _user?.showFavoritesPublicly ?? true, (value) => _togglePrivacy('showFavoritesPublicly', value)),
+            _buildSwitch(
+              'Private Profile',
+              _user?.isPrivate ?? false,
+              (value) => _togglePrivacy('isPrivate', value),
+            ),
+            _buildSwitch(
+              'Show Favorites Publicly',
+              _user?.showFavoritesPublicly ?? true,
+              (value) => _togglePrivacy('showFavoritesPublicly', value),
+            ),
 
             // Account Section
             _buildSectionHeader('Account'),
             _buildButton('Logout', _logout, color: Colors.grey),
             _buildButton('Delete Account', _deleteAccount, color: Colors.red),
-
-            // Household Section
-            _buildSectionHeader('Household'),
-            if (_householdInviteCode.isNotEmpty) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Your Invite Code', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                            const SizedBox(height: 4),
-                            Text(
-                              _householdInviteCode,
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.copy),
-                      tooltip: 'Copy code',
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _householdInviteCode));
-                        Get.snackbar('Copied', 'Invite code copied to clipboard');
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-            ] else ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                child: Text('You are not in a household yet.', style: TextStyle(color: Colors.grey[600])),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
-                child: TextField(
-                  controller: _joinCodeController,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: InputDecoration(
-                    labelText: 'Join with Invite Code',
-                    hintText: 'Enter 6-character code',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                ),
-              ),
-              _buildButton(
-                _joiningHousehold ? 'Joining...' : 'Join Household',
-                _joiningHousehold ? () {} : _joinHousehold,
-                color: Colors.green,
-              ),
-            ],
             const SizedBox(height: 24),
           ],
         ),
@@ -277,7 +193,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {int maxLines = 1}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: TextField(
@@ -285,9 +205,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         ),
       ),
     );

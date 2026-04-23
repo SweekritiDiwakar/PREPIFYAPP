@@ -57,11 +57,36 @@ class RecipeProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> searchRecipes({String? query, List<String>? ingredients, List<String>? tags}) async {
+    _setLoading(true);
+    try {
+      if ((query == null || query.isEmpty) && 
+          (ingredients == null || ingredients.isEmpty) && 
+          (tags == null || tags.isEmpty)) {
+        await fetchRecipes();
+        return;
+      }
+      
+      final results = await RecipeService.searchRecipes(
+        queryText: query,
+        ingredientsList: ingredients,
+        tagsList: tags,
+      );
+      _recipesList = results;
+      _hasMore = false; // Disable pagination on search results
+    } catch (e) {
+      _errorMessage = 'Search failed.';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<bool> uploadRecipe({
     required String title,
-    required String category,
+    required String description,
     required List<String> ingredients,
-    required String steps,
+    required List<String> steps,
+    required List<String> tags,
     required File imageFile,
     required String username,
   }) async {
@@ -70,17 +95,16 @@ class RecipeProvider extends ChangeNotifier {
     try {
       await RecipeService.uploadRecipe(
         title: title,
-        category: category,
+        description: description,
         ingredients: ingredients,
         steps: steps,
+        tags: tags,
         imageFile: imageFile,
         username: username,
       );
-      // Refresh list after upload — don't let a fetch failure block success
       try {
         await fetchRecipes();
       } catch (_) {
-        // Fetch failing doesn't mean upload failed
         _setLoading(false);
       }
       return true;

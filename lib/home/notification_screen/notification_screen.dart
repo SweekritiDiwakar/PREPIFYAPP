@@ -99,7 +99,7 @@ class AppNotificationScreen extends StatelessWidget {
 }
 
 class _HouseholdEventsList extends StatefulWidget {
-  const _HouseholdEventsList({super.key});
+  const _HouseholdEventsList();
 
   @override
   State<_HouseholdEventsList> createState() => _HouseholdEventsListState();
@@ -215,7 +215,7 @@ class _HouseholdEventsListState extends State<_HouseholdEventsList> {
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({super.key, required this.data});
+  const _NotificationTile({required this.data});
   final Map<String, dynamic> data;
 
   @override

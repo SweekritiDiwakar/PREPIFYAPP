@@ -62,12 +62,16 @@ class _LandingScreenState extends State<LandingScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                          MaterialPageRoute(
+                            builder: (context) => const EditProfileScreen(),
+                          ),
                         );
                       },
                       child: CircleAvatar(
                         radius: 20,
-                        backgroundImage: const AssetImage('assets/images/me.jpeg'), 
+                        backgroundImage: const AssetImage(
+                          'assets/images/me.jpeg',
+                        ),
                         backgroundColor: Colors.grey[200],
                       ),
                     ),
@@ -94,27 +98,38 @@ class _LandingScreenState extends State<LandingScreen> {
                     GestureDetector(
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => ProfileScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => ProfileScreen(),
+                        ),
                       ),
-                      child: const Icon(Icons.settings, size: 28, color: Colors.black),
+                      child: const Icon(
+                        Icons.settings,
+                        size: 28,
+                        color: Colors.black,
+                      ),
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Grocery List Button
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const GroceryListScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const GroceryListScreen(),
+                      ),
                     );
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(20),
@@ -122,24 +137,27 @@ class _LandingScreenState extends State<LandingScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const [
-                         Icon(Icons.format_list_bulleted, color: Color(0xFFD84315)),
-                         SizedBox(width: 8),
-                         Text(
-                           'Grocery List',
-                           style: TextStyle(
-                             fontSize: 14,
-                             fontWeight: FontWeight.bold,
-                             color: Colors.black87,
-                             fontFamily: 'Serif', 
-                           ),
-                         ),
+                        Icon(
+                          Icons.format_list_bulleted,
+                          color: Color(0xFFD84315),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'Grocery List',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontFamily: 'Serif',
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 30),
-                
+
                 // Recipe Feed Title
                 const Text(
                   "Latest recipes",
@@ -150,9 +168,9 @@ class _LandingScreenState extends State<LandingScreen> {
                     color: Colors.black, // Explicitly black
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 Consumer<RecipeProvider>(
                   builder: (context, recipeProvider, _) {
                     if (recipeProvider.isLoading &&
@@ -177,7 +195,9 @@ class _LandingScreenState extends State<LandingScreen> {
                     if (recipeProvider.recipesList.isEmpty) {
                       return const Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Text('No recipes yet. Upload one from Add Recipe.'),
+                        child: Text(
+                          'No recipes yet. Upload one from Add Recipe.',
+                        ),
                       );
                     }
 
@@ -191,7 +211,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         final recipe = recipeProvider.recipesList[index];
                         final preview = recipe.ingredients.isNotEmpty
                             ? recipe.ingredients.take(2).join(', ')
-                            : recipe.steps;
+                            : recipe.steps.take(2).join(' • ');
                         return _buildDishCard(
                           context,
                           recipe: recipe,
@@ -232,7 +252,7 @@ class _LandingScreenState extends State<LandingScreen> {
       ),
     );
   }
-  
+
   Widget _buildDishCard(
     BuildContext context, {
     required Recipe recipe,
@@ -243,72 +263,62 @@ class _LandingScreenState extends State<LandingScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(
-              recipe: recipe,
-            ),
+            builder: (context) => RecipeDetailScreen(recipe: recipe),
           ),
         );
       },
       child: Column(
-      children: [
-        Container(
-          height: 250,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.network(
-            recipe.imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.grey[300],
-              child: const Center(child: Icon(Icons.broken_image)),
-            ),
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return const Center(child: CircularProgressIndicator());
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          recipe.title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Serif',
-            color: Colors.black,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.favorite_border, size: 16, color: Colors.grey),
-            const SizedBox(width: 4),
-            Text(
-              '${recipe.likes} likes',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[700],
+        children: [
+          Container(
+            height: 250,
+            width: double.infinity,
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(20)),
+            clipBehavior: Clip.antiAlias,
+            child: Image.network(
+              recipe.imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.grey[300],
+                child: const Center(child: Icon(Icons.broken_image)),
               ),
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Center(child: CircularProgressIndicator());
+              },
             ),
-          ],
-        ),
-      ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            recipe.title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Serif',
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.favorite_border, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Text(
+                '${recipe.likes} likes',
+                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

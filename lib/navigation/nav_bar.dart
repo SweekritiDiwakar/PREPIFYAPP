@@ -6,7 +6,6 @@ import 'package:prepify/screens/nav_pages/add_recipe.dart';
 import 'package:prepify/home/search_screen/search_screen.dart';
 import 'package:prepify/home/notification_screen/notification_screen.dart';
 import 'package:prepify/home/profile_screen/user_profile_screen.dart';
-import 'package:prepify/home/profile_screen/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final bool showDashboard;
