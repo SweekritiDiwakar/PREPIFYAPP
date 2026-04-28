@@ -118,7 +118,22 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        
+        // Clear the form fields instead of popping the screen
+        _titleController.clear();
+        _descriptionController.clear();
+        _stepsController.clear();
+        
+        for (final c in _ingredientsControllers) {
+          c.dispose();
+        }
+        _ingredientsControllers.clear();
+        
+        setState(() {
+          _ingredientsControllers.add(TextEditingController());
+          _selectedImage = null;
+          _selectedCategory = 'Veg';
+        });
       } else {
         final errorMsg = provider.errorMessage ?? 'Upload failed. Please try again.';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -189,14 +204,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF9CCC65), size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               const Text(
                 "Upload Recipe",
                 style: TextStyle(
