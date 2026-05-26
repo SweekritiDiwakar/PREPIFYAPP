@@ -2,13 +2,18 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:prepify/models/recipe.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/providers/recipe_provider.dart';
 import 'package:prepify/providers/user_profile_provider.dart';
 
 class AddRecipeScreen extends StatefulWidget {
-  const AddRecipeScreen({super.key});
+  const AddRecipeScreen({super.key, this.recipe});
+
+  final Recipe? recipe;
+
+  bool get isEditing => recipe != null;
 
   @override
   State<AddRecipeScreen> createState() => _AddRecipeScreenState();
@@ -22,6 +27,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     TextEditingController()
   ];
   File? _selectedImage;
+  String? _existingImageUrl;
   String _selectedCategory = 'Veg';
   final List<String> _categories = [
     'Veg',
@@ -43,6 +49,27 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+
+    final recipe = widget.recipe;
+    if (recipe == null) return;
+
+    _titleController.text = recipe.title;
+    _descriptionController.text = recipe.description;
+    _stepsController.text = recipe.steps.join('\n');
+    _selectedCategory = recipe.tags.isNotEmpty ? recipe.tags.first : _selectedCategory;
+    _existingImageUrl = recipe.imageUrl;
+
+    if (recipe.ingredients.isNotEmpty) {
+      _ingredientsControllers[0].text = recipe.ingredients.first;
+      for (final ingredient in recipe.ingredients.skip(1)) {
+        _ingredientsControllers.add(TextEditingController(text: ingredient));
+      }
+    }
+  }
+
   void _addIngredient() {
     setState(() => _ingredientsControllers.add(TextEditingController()));
   }
@@ -58,8 +85,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
   Future<void> _pickRecipeImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
+    final picked = await picker.pickMedia(
       imageQuality: 85,
     );
     if (picked == null) return;
@@ -68,7 +94,12 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     });
   }
 
-  Future<void> _handleUpload() async {
+  bool _isVideo(File file) {
+    final ext = file.path.split('.').last.toLowerCase();
+    return ['mp4', 'mov', 'avi', 'mkv', 'webm'].contains(ext);
+  }
+
+  Future<void> _handleSubmit() async {
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
     final stepsString = _stepsController.text.trim();
@@ -85,7 +116,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
       return;
     }
 
-    if (_selectedImage == null) {
+    if (_selectedImage == null && _existingImageUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a recipe image.')),
       );
@@ -98,47 +129,72 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     final username = userProfile?.name ?? 'Anonymous User';
 
     try {
-      final success = await provider.uploadRecipe(
-        title: title,
-        description: description,
-        tags: [_selectedCategory],
-        ingredients: ingredients,
-        steps: steps,
-        imageFile: _selectedImage!,
-        username: username,
-      );
-
-      if (!mounted) return;
-
-      if (success) {
-        await userProfileProvider.incrementCompletedRecipes();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Recipe uploaded successfully!'),
-            backgroundColor: Colors.green,
-          ),
+      if (widget.isEditing) {
+        final updatedRecipe = await provider.updateRecipe(
+          recipe: widget.recipe!,
+          title: title,
+          description: description,
+          tags: [_selectedCategory],
+          ingredients: ingredients,
+          steps: steps,
+          imageFile: _selectedImage,
         );
-        
-        // Clear the form fields instead of popping the screen
-        _titleController.clear();
-        _descriptionController.clear();
-        _stepsController.clear();
-        
-        for (final c in _ingredientsControllers) {
-          c.dispose();
+
+        if (!mounted) return;
+
+        if (updatedRecipe != null) {
+          Navigator.pop(context, updatedRecipe);
+          return;
+        } else {
+          final errorMsg = provider.errorMessage ?? 'Update failed. Please try again.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+          );
         }
-        _ingredientsControllers.clear();
-        
-        setState(() {
-          _ingredientsControllers.add(TextEditingController());
-          _selectedImage = null;
-          _selectedCategory = 'Veg';
-        });
       } else {
-        final errorMsg = provider.errorMessage ?? 'Upload failed. Please try again.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        final uploaded = await provider.uploadRecipe(
+          title: title,
+          description: description,
+          tags: [_selectedCategory],
+          ingredients: ingredients,
+          steps: steps,
+          imageFile: _selectedImage!,
+          username: username,
         );
+
+        if (!mounted) return;
+
+        if (uploaded) {
+          await userProfileProvider.incrementCompletedRecipes();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Recipe uploaded successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          _titleController.clear();
+          _descriptionController.clear();
+          _stepsController.clear();
+
+          for (final c in _ingredientsControllers) {
+            c.dispose();
+          }
+          _ingredientsControllers.clear();
+
+          setState(() {
+            _ingredientsControllers.add(TextEditingController());
+            _selectedImage = null;
+            _existingImageUrl = null;
+            _selectedCategory = 'Veg';
+          });
+        } else {
+          final errorMsg = provider.errorMessage ?? 'Upload failed. Please try again.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -205,8 +261,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                 ],
               ),
               const SizedBox(height: 24),
-              const Text(
-                "Upload Recipe",
+              Text(
+                widget.isEditing ? 'Edit Recipe' : "Upload Recipe",
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -260,10 +316,38 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: _selectedImage != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.file(_selectedImage!, fit: BoxFit.cover),
-                        )
+                      ? _isVideo(_selectedImage!)
+                          ? Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black12,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.videocam, size: 56, color: Colors.black54),
+                                    SizedBox(height: 8),
+                                    Text('Video Selected', style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              ),
+                            )
+                          : ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                            )
+                      : _existingImageUrl != null && _existingImageUrl!.isNotEmpty
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: Image.network(
+                                _existingImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => const Center(
+                                  child: Icon(Icons.broken_image, size: 56, color: Colors.grey),
+                                ),
+                              ),
+                            )
                       : const Center(
                           child: Icon(Icons.add_photo_alternate, size: 56, color: Colors.grey),
                         ),
@@ -306,7 +390,7 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                   child: Consumer<RecipeProvider>(
                     builder: (context, provider, _) {
                       return ElevatedButton(
-                        onPressed: provider.isLoading ? null : _handleUpload,
+                        onPressed: provider.isLoading ? null : _handleSubmit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFAED581),
                           foregroundColor: Colors.black,
@@ -320,8 +404,8 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                               )
-                            : const Text(
-                                "Upload Recipe",
+                            : Text(
+                                widget.isEditing ? 'Update Recipe' : "Upload Recipe",
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'serif'),
                               ),
                       );

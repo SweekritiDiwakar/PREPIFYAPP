@@ -149,17 +149,21 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 15),
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const GroceryListScreen()),
-                        );
-                      },
-                      child: _buildQuickLink("Grocery List", Icons.format_list_bulleted, true),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const GroceryListScreen()),
+                          );
+                        },
+                        child: _buildQuickLink("Grocery List", Icons.format_list_bulleted, true),
+                      ),
                     ),
-                    const SizedBox(width: 15),
-                    _buildQuickLink("My profile", null, false),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildQuickLink("My profile", null, false),
+                    ),
                   ],
                 ),
 
@@ -263,24 +267,31 @@ class DashboardScreen extends StatelessWidget {
 
   Widget _buildQuickLink(String text, IconData? icon, bool isHighlighted) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(25),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 22, color: const Color(0xFFD84315)),
-            const SizedBox(width: 8),
+            Icon(icon, size: 18, color: const Color(0xFFD84315)),
+            const SizedBox(width: 4),
           ],
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-              fontFamily: 'Serif',
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+                fontFamily: 'Serif',
+              ),
             ),
           ),
         ],

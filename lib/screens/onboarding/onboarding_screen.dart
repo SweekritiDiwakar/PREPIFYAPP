@@ -106,7 +106,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: TextButton(
               onPressed: _completeOnboarding,
               style: TextButton.styleFrom(
-                backgroundColor: Colors.black.withOpacity(0.3),
+                backgroundColor: Colors.black.withValues(alpha: 0.3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -142,7 +142,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         decoration: BoxDecoration(
                           color: onboardingController.currentPageIndex.value == index
                               ? AppColors.primary
-                              : Colors.white.withOpacity(0.5),
+                              : Colors.white.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ));

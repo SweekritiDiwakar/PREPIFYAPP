@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:prepify/home/recipe_detail_screen/recipe_detail_screen.dart';
+import 'package:prepify/models/recipe.dart';
 import 'package:prepify/models/post.dart';
+import 'package:prepify/services/recipe_service.dart';
 import 'package:prepify/services/social_service.dart';
 import 'package:prepify/providers/social_provider.dart';
 import 'package:prepify/home/social_feed/comments_bottom_sheet.dart';
@@ -83,6 +86,77 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Future<void> _deletePost() async {
+    if (currentUserId != widget.post.userId) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete post?'),
+        content: const Text('This will remove the post and its comments.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await SocialService.deletePost(widget.post.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post deleted.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete post: $e')),
+      );
+    }
+  }
+
+  Future<void> _openLinkedRecipe() async {
+    final linkedRecipeId = widget.post.recipeId.trim();
+    Recipe? recipe;
+
+    try {
+      if (linkedRecipeId.isNotEmpty) {
+        recipe = await RecipeService.fetchRecipeById(linkedRecipeId);
+      } else if (widget.post.imageUrl.isNotEmpty) {
+        // Fallback: try to find a recipe with the same imageUrl
+        recipe = await RecipeService.fetchRecipeByImageUrl(widget.post.imageUrl);
+      }
+      if (!mounted) return;
+
+      if (recipe == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recipe not found. It may have been deleted or was never linked.')),
+        );
+        return;
+      }
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecipeDetailScreen(recipe: recipe!),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open recipe: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final socialProvider = context.watch<SocialProvider>();
@@ -135,13 +209,16 @@ class _PostCardState extends State<PostCard> {
           
           // Image
           if (widget.post.imageUrl.isNotEmpty)
-            Container(
-              height: 300,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: NetworkImage(widget.post.imageUrl),
-                  fit: BoxFit.cover,
+            GestureDetector(
+              onTap: _openLinkedRecipe,
+              child: Container(
+                height: 300,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: NetworkImage(widget.post.imageUrl),
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
             ),
@@ -172,7 +249,10 @@ class _PostCardState extends State<PostCard> {
           // Actions
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            child: Row(
+            child: Wrap(
+              spacing: 2,
+              runSpacing: 0,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 IconButton(
                   icon: Icon(
@@ -200,9 +280,19 @@ class _PostCardState extends State<PostCard> {
                   icon: const Icon(Icons.share, color: Colors.black87),
                   onPressed: _sharePost,
                 ),
+                TextButton(
+                  onPressed: _openLinkedRecipe,
+                  child: const Text('View Recipe'),
+                ),
+                if (currentUserId == widget.post.userId)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                    onPressed: _deletePost,
+                  ),
               ],
+              ),
             ),
-          ),
+          
           
           // Likes Count & Description
           Padding(

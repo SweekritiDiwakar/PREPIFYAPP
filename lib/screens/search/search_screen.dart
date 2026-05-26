@@ -14,7 +14,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _ingredientController = TextEditingController();
 
-  List<String> _selectedFilters = [];
+  final List<String> _selectedFilters = [];
 
   void _performSearch() {
     FocusScope.of(context).unfocus();
@@ -151,7 +151,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                   width: 60,
                                   height: 60,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                                  errorBuilder: (_, _, _) => Container(
                                     width: 60,
                                     height: 60,
                                     color: Colors.grey[300],

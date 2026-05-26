@@ -49,9 +49,9 @@ class OnboardingPage extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withOpacity(0.1),
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.8),
+                  Colors.black.withValues(alpha: 0.1),
+                  Colors.black.withValues(alpha: 0.3),
+                  Colors.black.withValues(alpha: 0.8),
                 ],
                 stops: const [0.0, 0.6, 1.0],
               ),
@@ -80,7 +80,7 @@ class OnboardingPage extends StatelessWidget {
                 page.description,
                 textAlign: TextAlign.left,
                 style: AppTextStyles.bodyLarge.copyWith(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   height: 1.5,
                 ),
               ),

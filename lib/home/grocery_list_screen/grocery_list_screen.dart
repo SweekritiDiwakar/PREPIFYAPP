@@ -112,115 +112,199 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     final joinCodeController = TextEditingController();
     bool isJoining = false;
 
+    final inviteController = TextEditingController();
+    bool isInviting = false;
+    String? inviteMessage;
+    bool? inviteSuccess;
+
     await showDialog<void>(
       context: context,
       builder: (context) {
         return StatefulBuilder(builder: (context, setState) {
           return AlertDialog(
-            title: const Text('Household Options'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Invite members', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text('Share this code with your household members:'),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                  ),
-                  child: FutureBuilder<String>(
-                    future: _getHouseholdInviteCode(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(
-                          child: SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
-                      }
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            snapshot.data!,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                          if (snapshot.data! != 'NO HOUSEHOLD')
-                            IconButton(
-                              icon: const Icon(Icons.copy, size: 20),
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: snapshot.data!));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Copied!')),
-                                );
-                              },
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text('Join a Household', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: joinCodeController,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter code',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
+            title: const Text('Manage Access'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Invite user to this list', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: inviteController,
+                    decoration: const InputDecoration(
+                      hintText: 'Username or email',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                     ),
-                    onPressed: isJoining
-                        ? null
-                        : () async {
-                            final code = joinCodeController.text.trim().toUpperCase();
-                            if (code.isEmpty) return;
-                            setState(() => isJoining = true);
-                            try {
-                              await HouseholdFirestoreService.joinHouseholdByInviteCode(code);
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Successfully joined household!')),
-                                );
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-                                );
-                              }
-                            } finally {
-                              if (mounted) setState(() => isJoining = false);
-                            }
-                          },
-                    child: Text(isJoining ? 'Joining...' : 'Join Household'),
                   ),
-                ),
-              ],
+                  if (inviteMessage != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      inviteMessage!,
+                      style: TextStyle(
+                        color: inviteSuccess == true ? Colors.green : Colors.red,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: isInviting
+                          ? null
+                          : () async {
+                              final input = inviteController.text.trim();
+                              if (input.isEmpty) return;
+                              setState(() {
+                                isInviting = true;
+                                inviteMessage = null;
+                              });
+                              try {
+                                final result = await GroceryFirestoreService.inviteToList(listId, input);
+                                setState(() {
+                                  if (result == 'success') {
+                                    inviteSuccess = true;
+                                    inviteMessage = 'Member added successfully!';
+                                    inviteController.clear();
+                                  } else if (result == 'userNotFound') {
+                                    inviteSuccess = false;
+                                    inviteMessage = 'No user found with that username or email.';
+                                  } else if (result == 'isSelf') {
+                                    inviteSuccess = false;
+                                    inviteMessage = "You can't invite yourself.";
+                                  } else if (result == 'alreadyMember') {
+                                    inviteSuccess = false;
+                                    inviteMessage = 'This person is already in the list.';
+                                  } else {
+                                    inviteSuccess = false;
+                                    inviteMessage = result;
+                                  }
+                                });
+                              } catch (e) {
+                                setState(() {
+                                  inviteSuccess = false;
+                                  inviteMessage = 'Error: $e';
+                                });
+                              } finally {
+                                setState(() {
+                                  isInviting = false;
+                                });
+                              }
+                            },
+                      child: Text(isInviting ? 'Inviting...' : 'Invite User'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text('Household Options', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 16),
+                  const Text('Invite to household', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('Share this code with your household members:'),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    ),
+                    child: FutureBuilder<String>(
+                      future: _getHouseholdInviteCode(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              snapshot.data!,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                            if (snapshot.data! != 'NO HOUSEHOLD')
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 20),
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: snapshot.data!));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Copied!')),
+                                  );
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('Join a Household', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: joinCodeController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      hintText: 'Enter code',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: isJoining
+                          ? null
+                          : () async {
+                              final code = joinCodeController.text.trim().toUpperCase();
+                              if (code.isEmpty) return;
+                              setState(() => isJoining = true);
+                              try {
+                                await HouseholdFirestoreService.joinHouseholdByInviteCode(code);
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Successfully joined household!')),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) setState(() => isJoining = false);
+                              }
+                            },
+                      child: Text(isJoining ? 'Joining...' : 'Join Household'),
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -613,7 +697,7 @@ Future<void> _preloadUserNames(List<String> userIds) async {
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
+                                color: Colors.blue.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Row(

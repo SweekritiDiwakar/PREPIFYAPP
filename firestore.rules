@@ -2,6 +2,18 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function userProfileInHousehold(householdId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.householdId == householdId;
+    }
+
+    function userInHouseholdMembers(householdId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/households/$(householdId))
+        && request.auth.uid in get(/databases/$(database)/documents/households/$(householdId)).data.members;
+    }
     
     // Users can read any user profile, but only edit their own.
     match /users/{userId} {
@@ -13,14 +25,27 @@ service cloud.firestore {
     // Only the creator can edit/delete their recipe.
     match /recipes/{recipeId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.createdBy;
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.createdBy;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.createdBy;
+      allow update, delete: if request.auth != null
+        && (
+          request.auth.uid == resource.data.createdBy
+          || request.auth.uid == resource.data.userId
+        );
     }
     
     // Grocery Lists
     match /groceryLists/{listId} {
-      // Allow read/write if the user is a member of the list
-      allow read, update, delete: if request.auth != null && request.auth.uid in resource.data.members;
+      // Allow read if user is list member or in same household.
+      allow read: if request.auth != null
+        && (
+          request.auth.uid in resource.data.members
+          || userProfileInHousehold(resource.data.householdId)
+        );
+
+      // Update/delete requires direct list membership.
+      allow update, delete: if request.auth != null && request.auth.uid in resource.data.members;
+
       // Allow create if the user is logged in
       allow create: if request.auth != null && request.auth.uid in request.resource.data.members;
       
@@ -29,6 +54,23 @@ service cloud.firestore {
         // We inherit the parent document (the grocery list), but in Firestore we normally 
         // have to fetch it with a get() to check parent fields, unless we only want basic auth check.
         allow read, write: if request.auth != null && request.auth.uid in get(/databases/$(database)/documents/groceryLists/$(listId)).data.members;
+      }
+    }
+
+    // Grocery Lists (active collection name in app code)
+    match /grocery_lists/{listId} {
+      allow read: if request.auth != null
+        && (
+          request.auth.uid in resource.data.members
+          || userProfileInHousehold(resource.data.householdId)
+        );
+
+      allow update, delete: if request.auth != null && request.auth.uid in resource.data.members;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.members;
+
+      match /items/{itemId} {
+        allow read, write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/grocery_lists/$(listId)).data.members;
       }
     }
     
@@ -59,14 +101,88 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == request.resource.data.userId;
     }
 
+    // Social Posts
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+
+      match /likes/{likeId} {
+        allow read: if request.auth != null;
+        allow create, update, delete: if request.auth != null
+          && (
+            request.auth.uid == likeId
+            || request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.userId
+          );
+      }
+
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+        allow delete: if request.auth != null
+          && (
+            request.auth.uid == resource.data.userId
+            || request.auth.uid == get(/databases/$(database)/documents/posts/$(postId)).data.userId
+          );
+      }
+    }
+
     // Household Chat Messages
     match /messages/{messageId} {
       allow read: if request.auth != null
-        && request.auth.uid in get(/databases/$(database)/documents/households/$(resource.data.householdId)).data.members;
+        && (
+          userInHouseholdMembers(resource.data.householdId)
+          || userProfileInHousehold(resource.data.householdId)
+        );
 
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.senderId
-        && request.auth.uid in get(/databases/$(database)/documents/households/$(request.resource.data.householdId)).data.members;
+        && (
+          userInHouseholdMembers(request.resource.data.householdId)
+          || userProfileInHousehold(request.resource.data.householdId)
+        );
+
+      allow update, delete: if false;
+    }
+
+    // Households
+    match /households/{householdId} {
+      allow read: if request.auth != null && request.auth.uid in resource.data.members;
+      allow create: if request.auth != null && request.auth.uid in request.resource.data.members;
+      allow update: if request.auth != null && request.auth.uid in resource.data.members;
+      allow delete: if false;
+    }
+
+    // Stock
+    match /stock/{stockId} {
+      allow read, update, delete: if request.auth != null
+        && (
+          userInHouseholdMembers(resource.data.householdId)
+          || userProfileInHousehold(resource.data.householdId)
+          || request.auth.uid == resource.data.addedBy
+        );
+
+      allow create: if request.auth != null
+        && (
+          userInHouseholdMembers(request.resource.data.householdId)
+          || userProfileInHousehold(request.resource.data.householdId)
+          || request.auth.uid == request.resource.data.addedBy
+        );
+    }
+
+    // Household Events (for Low Stock Alerts, etc.)
+    match /household_events/{eventId} {
+      allow read: if request.auth != null
+        && (
+          userInHouseholdMembers(resource.data.householdId)
+          || userProfileInHousehold(resource.data.householdId)
+        );
+
+      allow create: if request.auth != null
+        && (
+          userInHouseholdMembers(request.resource.data.householdId)
+          || userProfileInHousehold(request.resource.data.householdId)
+        );
 
       allow update, delete: if false;
     }

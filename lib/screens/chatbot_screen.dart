@@ -43,10 +43,13 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   Future<void> _onSend(String text) async {
+    final message = text.trim();
+    if (message.isEmpty) return;
+
     final userMessage = _ChatMessage(
       senderId: 'me',
       senderName: 'You',
-      text: text,
+      text: message,
       createdAt: DateTime.now(),
     );
 
@@ -56,21 +59,39 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
     _scrollToLatest();
 
-    final response = await _aiService.sendMessage(text);
+    try {
+      final response = await _aiService.sendMessage(message);
 
-    if (!mounted) return;
-    setState(() {
-      _messages.add(
-        _ChatMessage(
-          senderId: 'assistant',
-          senderName: 'Prepify Assistant',
-          text: response,
-          createdAt: DateTime.now(),
-        ),
-      );
-      _isLoading = false;
-    });
-    _scrollToLatest();
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          _ChatMessage(
+            senderId: 'assistant',
+            senderName: 'Prepify Assistant',
+            text: response,
+            createdAt: DateTime.now(),
+          ),
+        );
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(
+          _ChatMessage(
+            senderId: 'assistant',
+            senderName: 'Prepify Assistant',
+            text: 'Sorry, I could not get a response right now. Please try again.',
+            createdAt: DateTime.now(),
+          ),
+        );
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      _scrollToLatest();
+    }
   }
 
   @override

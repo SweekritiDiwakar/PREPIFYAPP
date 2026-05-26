@@ -11,6 +11,7 @@ class SocialService {
   static CollectionReference<Map<String, dynamic>> get _posts => _db.collection('posts');
 
   static Future<void> createPost({
+    String? recipeId,
     required String imageUrl,
     required String description,
     required String username,
@@ -21,6 +22,7 @@ class SocialService {
 
     await _posts.add({
       'userId': user.uid,
+      'recipeId': recipeId ?? '',
       'username': username,
       'imageUrl': imageUrl,
       'description': description,
@@ -160,5 +162,72 @@ class SocialService {
       'commentText': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
+  }
+
+  static Future<void> deleteRecipePost({
+    required String recipeId,
+    required String userId,
+    required String imageUrl,
+    required String title,
+  }) async {
+    final userPosts = await _posts.where('userId', isEqualTo: userId).get();
+    final matches = userPosts.docs.where((doc) {
+      final data = doc.data();
+      final linkedRecipeId = (data['recipeId'] as String?)?.trim() ?? '';
+      final postImageUrl = (data['imageUrl'] as String?)?.trim() ?? '';
+      final description = (data['description'] as String?)?.trim() ?? '';
+
+      if (linkedRecipeId.isNotEmpty && linkedRecipeId == recipeId) {
+        return true;
+      }
+
+      final expectedPrefix = 'Check out my new recipe: $title!';
+      return postImageUrl.isNotEmpty && postImageUrl == imageUrl && description.startsWith(expectedPrefix);
+    }).toList();
+
+    for (final postDoc in matches) {
+      final postRef = _posts.doc(postDoc.id);
+
+      final likesSnap = await postRef.collection('likes').get();
+      for (final likeDoc in likesSnap.docs) {
+        await likeDoc.reference.delete();
+      }
+
+      final commentsSnap = await postRef.collection('comments').get();
+      for (final commentDoc in commentsSnap.docs) {
+        await commentDoc.reference.delete();
+      }
+
+      await postRef.delete();
+    }
+  }
+
+  static Future<void> deletePost(String postId) async {
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Not logged in');
+
+    final postRef = _posts.doc(postId);
+    final postDoc = await postRef.get();
+    if (!postDoc.exists) {
+      throw StateError('Post not found.');
+    }
+
+    final postData = postDoc.data() ?? <String, dynamic>{};
+    final ownerId = (postData['userId'] as String?)?.trim() ?? '';
+    if (ownerId.isNotEmpty && ownerId != user.uid) {
+      throw StateError('You can only delete your own post.');
+    }
+
+    final likesSnap = await postRef.collection('likes').get();
+    for (final likeDoc in likesSnap.docs) {
+      await likeDoc.reference.delete();
+    }
+
+    final commentsSnap = await postRef.collection('comments').get();
+    for (final commentDoc in commentsSnap.docs) {
+      await commentDoc.reference.delete();
+    }
+
+    await postRef.delete();
   }
 }

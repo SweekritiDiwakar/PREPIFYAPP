@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prepify/models/user_model.dart';
 import 'package:prepify/services/user_service.dart';
@@ -15,6 +14,7 @@ class SettingsScreen extends StatefulWidget {
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
+
 
 class _SettingsScreenState extends State<SettingsScreen> {
   UserModel? _user;

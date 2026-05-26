@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:prepify/providers/user_profile_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -50,6 +53,25 @@ class _SplashScreenState extends State<SplashScreen>
       if (!onboardingCompleted) {
         debugPrint('SplashScreen: Showing onboarding');
         Get.offAllNamed('/onboarding');
+        return;
+      }
+
+      // Respect "Remember me": only auto-enter app when user chose to be remembered.
+      final shouldRemember = prefs.getBool('remember_me') ?? false;
+
+      if (FirebaseAuth.instance.currentUser != null && shouldRemember) {
+        debugPrint('SplashScreen: User is already logged in and opted to remember, going to Home');
+        if (mounted) {
+          Provider.of<UserProfileProvider>(context, listen: false).initializeCurrentUser();
+        }
+        Get.offAllNamed('/home');
+        return;
+      }
+
+      if (FirebaseAuth.instance.currentUser != null && !shouldRemember) {
+        debugPrint('SplashScreen: User exists but did not opt to remember — signing out and going to Login');
+        await FirebaseAuth.instance.signOut();
+        Get.offAllNamed('/login');
         return;
       }
 

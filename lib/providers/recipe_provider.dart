@@ -117,6 +117,61 @@ class RecipeProvider extends ChangeNotifier {
     }
   }
 
+  Future<Recipe?> updateRecipe({
+    required Recipe recipe,
+    required String title,
+    required String description,
+    required List<String> ingredients,
+    required List<String> steps,
+    required List<String> tags,
+    File? imageFile,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      final updatedRecipe = await RecipeService.updateRecipe(
+        recipe: recipe,
+        title: title,
+        description: description,
+        ingredients: ingredients,
+        steps: steps,
+        tags: tags,
+        imageFile: imageFile,
+      );
+
+      final index = _recipesList.indexWhere((item) => item.id == recipe.id);
+      if (index != -1) {
+        _recipesList[index] = updatedRecipe;
+        notifyListeners();
+      }
+
+      return updatedRecipe;
+    } catch (e) {
+      debugPrint('RecipeProvider.updateRecipe error: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> deleteRecipe(Recipe recipe) async {
+    _setLoading(true);
+    _errorMessage = null;
+    try {
+      await RecipeService.deleteRecipe(recipe.id);
+      _recipesList.removeWhere((item) => item.id == recipe.id);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('RecipeProvider.deleteRecipe error: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> likeRecipe(String recipeId) async {
     try {
       await RecipeService.likeRecipe(recipeId);

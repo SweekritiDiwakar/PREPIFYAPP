@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:prepify/home/add_recipe_screen/add_recipe_screen.dart';
+import 'package:prepify/providers/recipe_provider.dart';
 import 'package:prepify/models/recipe.dart';
 
 class RecipeSection {
@@ -56,12 +58,39 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isCooked = false;
+  Recipe? _localRecipe;
+
+  Recipe get _recipe {
+    if (_localRecipe != null) return _localRecipe!;
+    if (widget.recipe != null) return widget.recipe!;
+
+    // Build a lightweight Recipe from the provided ad-hoc fields (used by dashboard quick-cards).
+    final ingredients = <String>[];
+    final steps = <String>[];
+    for (var s in widget.sections) {
+      ingredients.addAll(s.ingredients);
+      steps.addAll(s.steps);
+    }
+
+    return Recipe(
+      id: '',
+      title: widget.title,
+      description: '${widget.duration} · ${widget.difficulty}',
+      ingredients: ingredients,
+      steps: steps,
+      imageUrl: widget.imagePath,
+      createdBy: '',
+      createdAt: null,
+      likes: 0,
+      tags: const [],
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 1); // Ingredients selected by default
+    _localRecipe = widget.recipe;
+    _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
   }
 
   @override
@@ -70,7 +99,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     super.dispose();
   }
 
-  void _showActionMenu() {
+  void _showActionMenu(Recipe recipe, bool canManage) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -83,9 +112,79 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (canManage) ...[
+                _buildActionMenuItem(
+                  Icons.edit_outlined,
+                  'Edit Recipe',
+                  onTap: () async {
+                    final updated = await Navigator.push<Recipe>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddRecipeScreen(recipe: recipe),
+                      ),
+                    );
+
+                    if (updated != null && mounted) {
+                      setState(() {
+                        _localRecipe = updated;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Recipe updated successfully.')),
+                      );
+                    }
+                  },
+                ),
+                const Divider(height: 1, color: Colors.black12),
+                _buildActionMenuItem(
+                  Icons.delete_outline,
+                  'Delete Recipe',
+                  isDestructive: true,
+                  onTap: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return AlertDialog(
+                          title: const Text('Delete recipe?'),
+                          content: const Text('This cannot be undone.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed != true || !mounted) return;
+
+                    final success = await context.read<RecipeProvider>().deleteRecipe(recipe);
+                    if (!mounted) return;
+
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Recipe deleted.')),
+                      );
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            context.read<RecipeProvider>().errorMessage ?? 'Delete failed.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const Divider(height: 1, color: Colors.black12),
+              ],
               _buildActionMenuItem(Icons.info_outline, 'Nutrition Facts'),
-              const Divider(height: 1, color: Colors.black12),
-              _buildActionMenuItem(Icons.timer_outlined, 'Open Cooking Mode'),
               const Divider(height: 1, color: Colors.black12),
               _buildActionMenuItem(Icons.note_add_outlined, 'Add Notes'),
               const Divider(height: 1, color: Colors.black12),
@@ -103,11 +202,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     );
   }
 
-  Widget _buildActionMenuItem(IconData icon, String title) {
+  Widget _buildActionMenuItem(IconData icon, String title, {VoidCallback? onTap, bool isDestructive = false}) {
     return ListTile(
-      leading: Icon(icon, color: Colors.black54),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      onTap: () => Navigator.pop(context),
+      leading: Icon(icon, color: isDestructive ? Colors.redAccent : Colors.black54),
+      title: Text(title,
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: isDestructive ? Colors.redAccent : Colors.black87)),
+      onTap: () {
+        Navigator.pop(context);
+        onTap?.call();
+      },
       dense: true,
       visualDensity: VisualDensity.compact,
     );
@@ -116,6 +219,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     // Combine all sections for the tabs if there are multiple
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    final canManage = currentUserId != null && currentUserId == _recipe.createdBy;
     List<String> allIngredients = [];
     List<String> allSteps = [];
     for (var section in widget.sections) {
@@ -151,7 +256,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                       backgroundColor: Colors.white,
                       child: IconButton(
                         icon: const Icon(Icons.more_horiz, color: Colors.black),
-                        onPressed: _showActionMenu,
+                        onPressed: () => _showActionMenu(_recipe, canManage),
                       ),
                     ),
                   ),
@@ -159,13 +264,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                 flexibleSpace: FlexibleSpaceBar(
                   background: ClipRRect(
                     borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                    child: widget.imagePath.startsWith('assets')
+                    child: _recipe.imageUrl.startsWith('assets')
                         ? Image.asset(
-                            widget.imagePath,
+                            _recipe.imageUrl,
                             fit: BoxFit.cover,
                           )
                         : Image.network(
-                            widget.imagePath,
+                            _recipe.imageUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Container(
                               color: Colors.grey[300],
@@ -189,7 +294,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              widget.title,
+                              _recipe.title,
                               style: const TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
@@ -233,9 +338,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     dividerColor: Colors.transparent,
                     tabs: [
-                      _buildTab('Cookware', 0),
-                      _buildTab('Ingredients', 1),
-                      _buildTab('Instructions', 2),
+                      _buildTab('Ingredients', 0),
+                      _buildTab('Instructions', 1),
                     ],
                   ),
                 ),
@@ -246,7 +350,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                   child: TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildCookwareTab(),
                       _buildIngredientsTab(allIngredients),
                       _buildInstructionsTab(allSteps),
                     ],
@@ -254,92 +357,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                 ),
               ),
             ],
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.only(top: 15, bottom: 30, left: 20, right: 20),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF2EF),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.8),
-                    spreadRadius: 20,
-                    blurRadius: 20,
-                    offset: const Offset(0, -10),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isCooked = !_isCooked;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[400]!),
-                        borderRadius: BorderRadius.circular(25),
-                        color: Colors.white.withOpacity(0.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _isCooked ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: _isCooked ? Colors.orange : Colors.grey,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text('Cooked?', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (_isCooked) {
-                          // Award points if cooked
-                          final provider = Provider.of<UserProfileProvider>(context, listen: false);
-                          await provider.incrementCompletedRecipes();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('🎉 Recipe Finished! Points added to your profile!'),
-                                backgroundColor: Colors.green,
-                                duration: Duration(seconds: 3),
-                              ),
-                            );
-                            Navigator.pop(context);
-                          }
-                        } else {
-                          // Start cooking logic
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Cooking mode started!')),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange[800],
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text('Start Cooking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
@@ -376,14 +393,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     );
   }
 
-  Widget _buildCookwareTab() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-      children: const [
-        Text('can opener', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
 
   Widget _buildIngredientsTab(List<String> ingredients) {
     return ListView.builder(

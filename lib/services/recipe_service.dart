@@ -55,7 +55,7 @@ class RecipeService {
     final imageUrl = await CloudinaryService.uploadImage(imageFile);
 
     final userId = currentUser.uid;
-    await _recipes.add({
+    final docRef = await _recipes.add({
       'title': safeTitle,
       'description': safeDescription,
       'ingredients': safeIngredients,
@@ -69,6 +69,7 @@ class RecipeService {
 
     try {
       await SocialService.createPost(
+        recipeId: docRef.id,
         imageUrl: imageUrl,
         description:
             'Check out my new recipe: $safeTitle!\n\n$safeDescription\n\nTags: ${safeTags.join(', ')}',
@@ -81,6 +82,91 @@ class RecipeService {
     } catch (e) {
       debugPrint('Error creating social post or awarding badge: $e');
     }
+  }
+
+  static Future<Recipe> updateRecipe({
+    required Recipe recipe,
+    required String title,
+    required String description,
+    required List<String> ingredients,
+    required List<String> steps,
+    required List<String> tags,
+    File? imageFile,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw StateError('You must be logged in to edit recipes.');
+    }
+
+    if (recipe.createdBy != currentUser.uid) {
+      throw StateError('You can only edit your own recipes.');
+    }
+
+    final safeTitle = title.trim();
+    final safeDescription = description.trim();
+    final safeIngredients = ingredients
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final safeSteps = steps
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    final safeTags = tags
+        .map((tag) => tag.trim())
+        .where((tag) => tag.isNotEmpty)
+        .toList();
+
+    if (safeTitle.isEmpty || safeIngredients.isEmpty || safeSteps.isEmpty) {
+      throw ArgumentError('Please fill all recipe fields.');
+    }
+
+    final imageUrl = imageFile != null
+        ? await CloudinaryService.uploadImage(imageFile)
+        : recipe.imageUrl.trim();
+
+    if (imageUrl.isEmpty) {
+      throw ArgumentError('Please add a recipe image.');
+    }
+
+    final updatedRecipe = recipe.copyWith(
+      title: safeTitle,
+      description: safeDescription,
+      ingredients: safeIngredients,
+      steps: safeSteps,
+      imageUrl: imageUrl,
+      tags: safeTags,
+    );
+
+    await _recipes.doc(recipe.id).update({
+      'title': safeTitle,
+      'description': safeDescription,
+      'ingredients': safeIngredients,
+      'steps': safeSteps,
+      'imageUrl': imageUrl,
+      'tags': safeTags,
+    });
+
+    return updatedRecipe;
+  }
+
+  static Future<void> deleteRecipe(String recipeId) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      throw StateError('You must be logged in to delete recipes.');
+    }
+
+    final doc = await _recipes.doc(recipeId).get();
+    if (!doc.exists) {
+      throw StateError('Recipe not found.');
+    }
+
+    final recipe = Recipe.fromFirestore(doc.id, doc.data() ?? {});
+    if (recipe.createdBy != currentUser.uid) {
+      throw StateError('You can only delete your own recipes.');
+    }
+
+    await _recipes.doc(recipeId).delete();
   }
 
   // Stream for real-time updates (e.g. for user's own recipes)
@@ -188,6 +274,30 @@ class RecipeService {
 
   static Future<void> likeRecipe(String recipeId) async {
     await _recipes.doc(recipeId).update({'likes': FieldValue.increment(1)});
+  }
+
+  static Future<Recipe?> fetchRecipeById(String recipeId) async {
+    final trimmedId = recipeId.trim();
+    if (trimmedId.isEmpty) {
+      return null;
+    }
+
+    final doc = await _recipes.doc(trimmedId).get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    return Recipe.fromFirestore(doc.id, doc.data() ?? {});
+  }
+
+  static Future<Recipe?> fetchRecipeByImageUrl(String imageUrl) async {
+    final trimmed = imageUrl.trim();
+    if (trimmed.isEmpty) return null;
+
+    final query = await _recipes.where('imageUrl', isEqualTo: trimmed).limit(1).get();
+    if (query.docs.isEmpty) return null;
+    final doc = query.docs.first;
+    return Recipe.fromFirestore(doc.id, doc.data());
   }
 }
 

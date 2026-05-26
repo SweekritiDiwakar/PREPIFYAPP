@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:prepify/home/add_recipe_screen/add_recipe_screen.dart';
 import 'package:prepify/models/recipe.dart';
 import 'package:prepify/providers/recipe_provider.dart';
-import 'package:prepify/providers/user_profile_provider.dart';
+import 'package:video_player/video_player.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   const RecipeDetailScreen({super.key, required this.recipe});
@@ -15,21 +17,38 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _isCooked = false;
+  VideoPlayerController? _videoController;
+  Recipe? _localRecipe;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this, initialIndex: 1); // Ingredients selected by default
+    _localRecipe = widget.recipe;
+    _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
+
+    if (_isVideoUrl(widget.recipe.imageUrl)) {
+      _videoController = VideoPlayerController.networkUrl(Uri.parse(widget.recipe.imageUrl))
+        ..initialize().then((_) {
+          if (mounted) setState(() {});
+        })
+        ..setLooping(true)
+        ..play();
+    }
+  }
+
+  bool _isVideoUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.contains('.mp4') || lower.contains('.mov') || lower.contains('.webm') || lower.contains('.avi') || lower.contains('.mkv');
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
-  void _showActionMenu() {
+  void _showActionMenu(Recipe recipe, bool canManage) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -42,9 +61,77 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (canManage) ...[
+                _buildActionMenuItem(
+                  Icons.edit_outlined,
+                  'Edit Recipe',
+                  onTap: () async {
+                    final updated = await Navigator.push<Recipe>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddRecipeScreen(recipe: recipe),
+                      ),
+                    );
+
+                    if (updated != null && mounted) {
+                      setState(() {
+                        _localRecipe = updated;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Recipe updated successfully.')),
+                      );
+                    }
+                  },
+                ),
+                const Divider(height: 1, color: Colors.black12),
+                _buildActionMenuItem(
+                  Icons.delete_outline,
+                  'Delete Recipe',
+                  isDestructive: true,
+                  onTap: () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return AlertDialog(
+                          title: const Text('Delete recipe?'),
+                          content: const Text('This cannot be undone.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirmed != true || !mounted) return;
+
+                    final success = await context.read<RecipeProvider>().deleteRecipe(recipe);
+                    if (!mounted) return;
+
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Recipe deleted.')),
+                      );
+                      Navigator.pop(context);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(context.read<RecipeProvider>().errorMessage ?? 'Delete failed.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const Divider(height: 1, color: Colors.black12),
+              ],
               _buildActionMenuItem(Icons.info_outline, 'Nutrition Facts'),
-              const Divider(height: 1, color: Colors.black12),
-              _buildActionMenuItem(Icons.timer_outlined, 'Open Cooking Mode'),
               const Divider(height: 1, color: Colors.black12),
               _buildActionMenuItem(Icons.note_add_outlined, 'Add Notes'),
               const Divider(height: 1, color: Colors.black12),
@@ -62,11 +149,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     );
   }
 
-  Widget _buildActionMenuItem(IconData icon, String title) {
+  Widget _buildActionMenuItem(IconData icon, String title, {VoidCallback? onTap, bool isDestructive = false}) {
     return ListTile(
-      leading: Icon(icon, color: Colors.black54),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      onTap: () => Navigator.pop(context),
+      leading: Icon(icon, color: isDestructive ? Colors.redAccent : Colors.black54),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+          color: isDestructive ? Colors.redAccent : Colors.black87,
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context);
+        onTap?.call();
+      },
       dense: true,
       visualDensity: VisualDensity.compact,
     );
@@ -78,10 +175,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       backgroundColor: const Color(0xFFFEF2EF),
       body: Consumer<RecipeProvider>(
         builder: (context, provider, _) {
-          final index = provider.recipesList.indexWhere(
-            (item) => item.id == widget.recipe.id,
-          );
-          final liveRecipe = index >= 0 ? provider.recipesList[index] : widget.recipe;
+          final index = provider.recipesList.indexWhere((item) => item.id == widget.recipe.id);
+          final baseRecipe = _localRecipe ?? widget.recipe;
+          final liveRecipe = index >= 0 ? provider.recipesList[index] : baseRecipe;
+          final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+          final canManage = currentUserId != null && currentUserId == liveRecipe.createdBy;
 
           return Stack(
             children: [
@@ -109,7 +207,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           backgroundColor: Colors.white,
                           child: IconButton(
                             icon: const Icon(Icons.more_horiz, color: Colors.black),
-                            onPressed: _showActionMenu,
+                            onPressed: () => _showActionMenu(liveRecipe, canManage),
                           ),
                         ),
                       ),
@@ -117,14 +215,28 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                     flexibleSpace: FlexibleSpaceBar(
                       background: ClipRRect(
                         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
-                        child: Image.network(
-                          liveRecipe.imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: Colors.grey[300],
-                            child: const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.grey)),
-                          ),
-                        ),
+                        child: _isVideoUrl(liveRecipe.imageUrl)
+                            ? (_videoController != null && _videoController!.value.isInitialized
+                                ? FittedBox(
+                                    fit: BoxFit.cover,
+                                    child: SizedBox(
+                                      width: _videoController!.value.size.width,
+                                      height: _videoController!.value.size.height,
+                                      child: VideoPlayer(_videoController!),
+                                    ),
+                                  )
+                                : Container(
+                                    color: Colors.black12,
+                                    child: const Center(child: CircularProgressIndicator()),
+                                  ))
+                            : Image.network(
+                                liveRecipe.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Center(child: Icon(Icons.broken_image, size: 50, color: Colors.grey)),
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -153,7 +265,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  '35 minutes • 2 servings', // Mocked as in photo
+                                  '35 minutes • 2 servings',
                                   style: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 14,
@@ -193,9 +305,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         dividerColor: Colors.transparent,
                         tabs: [
-                          _buildTab('Cookware', 0),
-                          _buildTab('Ingredients', 1),
-                          _buildTab('Instructions', 2),
+                          _buildTab('Ingredients', 0),
+                          _buildTab('Instructions', 1),
                         ],
                       ),
                     ),
@@ -206,7 +317,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                       child: TabBarView(
                         controller: _tabController,
                         children: [
-                          _buildCookwareTab(),
                           _buildIngredientsTab(liveRecipe.ingredients),
                           _buildInstructionsTab(liveRecipe.steps),
                         ],
@@ -214,98 +324,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                     ),
                   ),
                 ],
-              ),
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.only(top: 15, bottom: 30, left: 20, right: 20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2EF),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.8),
-                        spreadRadius: 20,
-                        blurRadius: 20,
-                        offset: const Offset(0, -10),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isCooked = !_isCooked;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[400]!),
-                            borderRadius: BorderRadius.circular(25),
-                            color: Colors.white.withOpacity(0.5),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                _isCooked ? Icons.check_circle : Icons.radio_button_unchecked,
-                                color: _isCooked ? Colors.orange : Colors.grey,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text('Cooked?', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            if (_isCooked) {
-                              try {
-                                final userProvider = Provider.of<UserProfileProvider>(context, listen: false);
-                                await userProvider.incrementCompletedRecipes();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('🎉 Recipe Finished! Points added to your profile!'),
-                                      backgroundColor: Colors.green,
-                                      duration: Duration(seconds: 3),
-                                    ),
-                                  );
-                                  Navigator.pop(context);
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Cooking mode started!')),
-                                  );
-                                }
-                              }
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Cooking mode started!')),
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange[800],
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text('Start Cooking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ],
           );
@@ -318,7 +336,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     return AnimatedBuilder(
       animation: _tabController,
       builder: (context, child) {
-        bool isSelected = _tabController.index == index;
+        final isSelected = _tabController.index == index;
         return Tab(
           child: Container(
             height: 40,
@@ -344,15 +362,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     );
   }
 
-  Widget _buildCookwareTab() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-      children: const [
-        Text('can opener', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
   Widget _buildIngredientsTab(List<String> ingredients) {
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 100, top: 10),
@@ -360,7 +369,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       itemBuilder: (context, index) {
         final ing = ingredients[index];
         final isEven = index % 2 == 0;
-        
+
         return Container(
           color: isEven ? Colors.transparent : const Color(0xFFF9EAE8),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -437,7 +446,8 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverTabBarDelegate(this.tabBar);
 
   @override
-  double get minExtent => tabBar.preferredSize.height + 20; 
+  double get minExtent => tabBar.preferredSize.height + 20;
+
   @override
   double get maxExtent => tabBar.preferredSize.height + 20;
 
@@ -451,7 +461,5 @@ class _SliverTabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) {
-    return false;
-  }
+  bool shouldRebuild(_SliverTabBarDelegate oldDelegate) => false;
 }
