@@ -5,7 +5,7 @@ import 'package:prepify/services/auth_service.dart';
 
 class ForgotPasswordController extends GetxController {
   final formKey = GlobalKey<FormState>();
-  var isLoading = false.obs;
+  final isLoading = false.obs;
 
   final emailController = TextEditingController();
 
@@ -16,13 +16,25 @@ class ForgotPasswordController extends GetxController {
   }
 
   Future<void> handleReset() async {
-    if (!formKey.currentState!.validate()) return;
+    final currentState = formKey.currentState;
+    if (currentState == null || !currentState.validate()) return;
+
+    final email = emailController.text.trim();
+    if (email.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please enter your email address.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
 
     isLoading.value = true;
-    update(); // Notify GetBuilder to rebuild
 
     try {
-      await AuthService.resetPassword(email: emailController.text.trim());
+      await AuthService.resetPassword(email: email);
       Get.snackbar(
         'Success',
         'Reset link sent to your email. Please check your inbox.',
@@ -32,11 +44,16 @@ class ForgotPasswordController extends GetxController {
       );
       Get.back();
     } on FirebaseAuthException catch (e) {
+      debugPrint('ForgotPassword FirebaseAuthException: ${e.code} / ${e.message}');
       String errorMessage = 'Failed to send reset email.';
       if (e.code == 'user-not-found') {
         errorMessage = 'No user found with this email address.';
       } else if (e.code == 'invalid-email') {
         errorMessage = 'Please enter a valid email address.';
+      } else if (e.code == 'missing-android-pkg-name') {
+        errorMessage = 'Firebase configuration issue. Please check app setup.';
+      } else if (e.code == 'network-request-failed') {
+        errorMessage = 'Network error. Please check your internet connection.';
       } else if (e.message != null) {
         errorMessage = e.message!;
       }
@@ -49,6 +66,7 @@ class ForgotPasswordController extends GetxController {
         colorText: Colors.white,
       );
     } catch (e) {
+      debugPrint('ForgotPassword unexpected error: $e');
       Get.snackbar(
         'Error',
         'An unexpected error occurred. Please try again.',
@@ -58,7 +76,6 @@ class ForgotPasswordController extends GetxController {
       );
     } finally {
       isLoading.value = false;
-      update(); // Notify GetBuilder to rebuild
     }
   }
 

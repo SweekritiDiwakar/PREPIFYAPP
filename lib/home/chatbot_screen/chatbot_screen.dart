@@ -59,15 +59,33 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     });
     _scrollToBottom();
 
-    // Get bot response
-    final response = await _chatbotService.sendMessage(message);
+    try {
+      // Get bot response
+      final response = await _chatbotService.sendMessage(message);
 
-    if (mounted) {
-      setState(() {
-        _isTyping = false;
-        _messages.add(ChatMessage(text: response, isUser: false));
-      });
-      _scrollToBottom();
+      if (mounted) {
+        setState(() {
+          _messages.add(ChatMessage(text: response, isUser: false));
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(
+            ChatMessage(
+              text: 'Sorry, I could not get a response right now. Please try again.',
+              isUser: false,
+            ),
+          );
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+        });
+        _scrollToBottom();
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:prepify/home/profile_screen/profile_screen.dart';
@@ -90,7 +91,7 @@ class AppNotificationScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const Expanded(child: _HouseholdEventsList()),
+            const Expanded(child: _NotificationsFeed()),
           ],
         ),
       ),
@@ -98,16 +99,18 @@ class AppNotificationScreen extends StatelessWidget {
   }
 }
 
-class _HouseholdEventsList extends StatefulWidget {
-  const _HouseholdEventsList();
+class _NotificationsFeed extends StatefulWidget {
+  const _NotificationsFeed();
 
   @override
-  State<_HouseholdEventsList> createState() => _HouseholdEventsListState();
+  State<_NotificationsFeed> createState() => _NotificationsFeedState();
 }
 
-class _HouseholdEventsListState extends State<_HouseholdEventsList> {
+class _NotificationsFeedState extends State<_NotificationsFeed> {
+  String? _currentUserId;
   String? _householdId;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _stream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _userNotificationsStream;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _householdEventsStream;
   bool _loading = true;
 
   @override
@@ -118,16 +121,23 @@ class _HouseholdEventsListState extends State<_HouseholdEventsList> {
 
   Future<void> _init() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      final currentUserId = user?.uid;
       final id = await UserProfileService.getCurrentUserHouseholdId();
       if (!mounted) return;
       setState(() {
+        _currentUserId = currentUserId;
         _householdId = id.isNotEmpty ? id : null;
+        if (_currentUserId != null) {
+          _userNotificationsStream = FirebaseFirestore.instance
+              .collection('notifications')
+              .where('userId', isEqualTo: _currentUserId)
+              .snapshots();
+        }
         if (_householdId != null) {
-          _stream = FirebaseFirestore.instance
+          _householdEventsStream = FirebaseFirestore.instance
               .collection('household_events')
               .where('householdId', isEqualTo: _householdId)
-              .orderBy('createdAt', descending: true)
-              .limit(50)
               .snapshots();
         }
         _loading = false;
@@ -141,10 +151,40 @@ class _HouseholdEventsListState extends State<_HouseholdEventsList> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_householdId == null || _stream == null) return _buildEmpty();
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      children: [
+        _buildSectionTitle('New for you'),
+        const SizedBox(height: 12),
+        _buildUserNotifications(),
+        if (_householdId != null && _householdEventsStream != null) ...[
+          const SizedBox(height: 24),
+          _buildSectionTitle('Household activity'),
+          const SizedBox(height: 12),
+          _buildHouseholdEvents(),
+        ],
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    );
+  }
+
+  Widget _buildUserNotifications() {
+    if (_currentUserId == null || _userNotificationsStream == null) {
+      return _buildEmpty(
+        title: 'No personal notifications yet.',
+        subtitle: 'You will see list invitations and direct updates here.',
+      );
+    }
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _stream,
+      stream: _userNotificationsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -155,60 +195,90 @@ class _HouseholdEventsListState extends State<_HouseholdEventsList> {
           );
         }
 
-        final docs = snapshot.data?.docs ?? [];
-        if (docs.isEmpty) return _buildEmpty();
+        final docs = _sortedDocs(snapshot.data?.docs ?? []);
+        if (docs.isEmpty) {
+          return _buildEmpty(
+            title: 'No personal notifications yet.',
+            subtitle: 'You will see list invitations and direct updates here.',
+          );
+        }
 
-        final now = DateTime.now();
-        final todayStart = DateTime(now.year, now.month, now.day);
-
-        final todayDocs = docs.where((d) {
-          final ts = d.data()['createdAt'];
-          return ts is Timestamp && ts.toDate().isAfter(todayStart);
-        }).toList();
-
-        final earlierDocs = docs.where((d) {
-          final ts = d.data()['createdAt'];
-          return ts is Timestamp ? ts.toDate().isBefore(todayStart) : true;
-        }).toList();
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          children: [
-            if (todayDocs.isNotEmpty) ...[
-              const Text('New',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              ...todayDocs.map((d) => _NotificationTile(data: d.data())),
-              const SizedBox(height: 24),
-            ],
-            if (earlierDocs.isNotEmpty) ...[
-              const Text('Earlier',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              ...earlierDocs.map((d) => _NotificationTile(data: d.data())),
-            ],
-            const SizedBox(height: 80),
-          ],
+        return Column(
+          children: docs.map((d) => _NotificationTile(data: d.data())).toList(),
         );
       },
     );
   }
 
-  Widget _buildEmpty() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.notifications_none_outlined, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('No notifications yet.', style: TextStyle(color: Colors.grey)),
-          SizedBox(height: 8),
-          Text(
-            'Join a household to see activity here.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-            textAlign: TextAlign.center,
-          ),
-        ],
+  Widget _buildHouseholdEvents() {
+    if (_householdId == null || _householdEventsStream == null) {
+      return _buildEmpty(
+        title: 'No household activity yet.',
+        subtitle: 'Join a household to see shared updates here.',
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _householdEventsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Could not load notifications: ${snapshot.error}'),
+          );
+        }
+
+        final docs = _sortedDocs(snapshot.data?.docs ?? []);
+        if (docs.isEmpty) {
+          return _buildEmpty(
+            title: 'No household activity yet.',
+            subtitle: 'Join a household to see shared updates here.',
+          );
+        }
+
+        return Column(
+          children: docs.map((d) => _NotificationTile(data: d.data())).toList(),
+        );
+      },
+    );
+  }
+
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _sortedDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final sorted = [...docs];
+    sorted.sort((a, b) {
+      final aTs = (a.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+      final bTs = (b.data()['createdAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+      return bTs.compareTo(aTs);
+    });
+    return sorted;
+  }
+
+  Widget _buildEmpty({
+    required String title,
+    required String subtitle,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.notifications_none_outlined,
+                size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(title, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -221,8 +291,10 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final type = (data['type'] as String?) ?? '';
-    final title = (data['title'] as String?) ?? 'Notification';
-    final body = (data['body'] as String?) ?? '';
+    final title = (data['title'] as String?) ?? _titleForType(type);
+    final body = (data['body'] as String?) ??
+      (data['message'] as String?) ??
+      '';
     final ts = data['createdAt'];
     final timeStr = (ts is Timestamp)
         ? DateFormat('MMM d, h:mm a').format(ts.toDate())
@@ -239,7 +311,7 @@ class _NotificationTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 18, color: color),
@@ -289,8 +361,27 @@ class _NotificationTile extends StatelessWidget {
         return Icons.check_circle_outline;
       case 'household_member_joined':
         return Icons.group_add_outlined;
+      case 'grocery_list_member_added':
+        return Icons.person_add_alt_1;
       default:
         return Icons.notifications_outlined;
+    }
+  }
+
+  String _titleForType(String type) {
+    switch (type) {
+      case 'grocery_list_member_added':
+        return 'Added to grocery list';
+      case 'grocery_item_added':
+        return 'New grocery item';
+      case 'grocery_item_purchased':
+        return 'Item purchased';
+      case 'household_member_joined':
+        return 'New household member';
+      case 'low_stock_alert':
+        return 'Low stock alert';
+      default:
+        return 'Notification';
     }
   }
 
@@ -304,6 +395,8 @@ class _NotificationTile extends StatelessWidget {
         return const Color(0xFF558B2F);
       case 'household_member_joined':
         return Colors.blue;
+      case 'grocery_list_member_added':
+        return const Color(0xFF1565C0);
       default:
         return Colors.grey;
     }

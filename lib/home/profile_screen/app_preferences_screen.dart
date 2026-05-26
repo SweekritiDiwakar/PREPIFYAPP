@@ -13,7 +13,7 @@ class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
   bool _darkMode = false;
   bool _pushNotifications = true;
   bool _mealReminders = true;
-  String _selectedLanguage = "English";
+  final String _selectedLanguage = "English";
   String _unitSystem = "Metric";
 
   @override
@@ -107,7 +107,7 @@ class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
                 trailing: Switch(
                   value: _darkMode,
                   onChanged: (val) => setState(() => _darkMode = val),
-                  activeColor: const Color(0xFF9CCC65),
+                  activeThumbColor: const Color(0xFF9CCC65),
                 ),
               ),
               
@@ -121,7 +121,7 @@ class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
                 trailing: Switch(
                   value: _pushNotifications,
                   onChanged: (val) => setState(() => _pushNotifications = val),
-                  activeColor: const Color(0xFF9CCC65),
+                  activeThumbColor: const Color(0xFF9CCC65),
                 ),
               ),
               _buildPreferenceTile(
@@ -130,7 +130,7 @@ class _AppPreferencesScreenState extends State<AppPreferencesScreen> {
                 trailing: Switch(
                   value: _mealReminders,
                   onChanged: (val) => setState(() => _mealReminders = val),
-                  activeColor: const Color(0xFF9CCC65),
+                  activeThumbColor: const Color(0xFF9CCC65),
                 ),
               ),
 

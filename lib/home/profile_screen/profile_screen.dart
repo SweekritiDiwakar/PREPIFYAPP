@@ -3,11 +3,11 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:prepify/home/about_us_screen/about_us_screen.dart';
 import 'package:prepify/home/household_screen/household_screen.dart';
-import 'package:prepify/home/stock_screen/stock_screen.dart';
 import 'package:prepify/screens/auth/login_screen.dart';
 import 'package:prepify/home/profile_screen/edit_profile_screen.dart';
 import 'package:prepify/home/notification_screen/notification_screen.dart';
 import 'package:prepify/home/profile_screen/app_preferences_screen.dart';
+import 'package:prepify/home/profile_screen/widgets/stock_tracking_section.dart';
 import 'package:prepify/providers/user_profile_provider.dart';
 import 'package:prepify/services/auth_service.dart';
 
@@ -226,21 +226,10 @@ class ProfileScreen extends StatelessWidget {
                 circleColor: const Color(0xFF7B322A),
               ),
               const Divider(height: 1, color: Colors.grey),
-              _settingsItem(
-                icon: Icons.inventory_2_outlined,
-                title: "Stock Tracking",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const StockScreen(),
-                    ),
-                  );
-                },
-                iconColor: Colors.white,
-                circleColor: const Color(0xFF7B322A),
-              ),
-              const Divider(height: 1, color: Colors.grey),
+              const SizedBox(height: 24),
+              const StockTrackingSection(),
+
+              const SizedBox(height: 24),
 
               const SizedBox(height: 80),
 
@@ -252,14 +241,14 @@ class ProfileScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.blue.withOpacity(0.3),
+                            color: Colors.blue.withValues(alpha: 0.3),
                             spreadRadius: 2,
                             blurRadius: 1,
                             offset: const Offset(0, 0),
                           ),
                         ],
                         border: Border.all(
-                          color: Colors.blue.withOpacity(0.5),
+                          color: Colors.blue.withValues(alpha: 0.5),
                           width: 2,
                         ),
                       ),

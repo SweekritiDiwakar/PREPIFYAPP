@@ -1,14 +1,17 @@
+import 'dart:async';
+
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AiChatbotService {
   late final GenerativeModel _model;
-  late final ChatSession _chatSession;
+  late ChatSession _chatSession;
 
   // 🔐 Secure API key (from .env file)
   static String get _apiKey => dotenv.env['GEMINI_API_KEY'] ?? '';
 
+  // ignore: unused_field
   final String _systemInstructions = '''
 You are a friendly food assistant chatbot.
 
@@ -36,11 +39,11 @@ If the question is not food-related, still try to help in context of cooking, gr
 ''';
 
   AiChatbotService() {
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash-latest',
-      apiKey: _apiKey,
-      systemInstruction: Content.system(_systemInstructions),
-    );
+   _model = GenerativeModel(
+  model: 'gemini-2.5-flash',
+  apiKey: _apiKey,
+  // no requestOptions needed
+);
 
     _chatSession = _model.startChat();
   }
@@ -58,15 +61,18 @@ If the question is not food-related, still try to help in context of cooking, gr
     }
 
     try {
-      final response = await _chatSession.sendMessage(
-        Content.text(text),
-      );
+      final response = await _chatSession
+          .sendMessage(Content.text(text))
+          .timeout(const Duration(seconds: 20));
 
       return response.text?.trim() ??
           "Hmm I couldn't think of a reply, Try again!";
+    } on TimeoutException {
+      debugPrint('Gemini API timeout');
+      return "The chatbot is taking too long to respond. Please try again.";
     } catch (e) {
       debugPrint('Gemini API Error: $e');
-      return "Oops AI is having trouble right now. Try again in a bit.";
+      return "AI error: ${e.toString()}";
     }
   }
 }

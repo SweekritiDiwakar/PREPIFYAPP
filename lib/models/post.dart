@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Post {
   final String id;
   final String userId;
+  final String recipeId;
   final String username;
   final String imageUrl;
   final String description;
@@ -13,6 +14,7 @@ class Post {
   Post({
     required this.id,
     required this.userId,
+    this.recipeId = '',
     required this.username,
     required this.imageUrl,
     required this.description,
@@ -25,6 +27,7 @@ class Post {
     return Post(
       id: id,
       userId: data['userId'] ?? '',
+      recipeId: data['recipeId'] ?? '',
       username: data['username'] ?? '',
       imageUrl: data['imageUrl'] ?? '',
       description: data['description'] ?? '',
@@ -37,6 +40,7 @@ class Post {
   Map<String, dynamic> toFirestore() {
     return {
       'userId': userId,
+      'recipeId': recipeId,
       'username': username,
       'imageUrl': imageUrl,
       'description': description,
@@ -49,6 +53,7 @@ class Post {
   Post copyWith({
     String? id,
     String? userId,
+    String? recipeId,
     String? username,
     String? imageUrl,
     String? description,
@@ -59,6 +64,7 @@ class Post {
     return Post(
       id: id ?? this.id,
       userId: userId ?? this.userId,
+      recipeId: recipeId ?? this.recipeId,
       username: username ?? this.username,
       imageUrl: imageUrl ?? this.imageUrl,
       description: description ?? this.description,

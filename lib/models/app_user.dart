@@ -25,11 +25,15 @@ class AppUser {
     String uid,
     Map<String, dynamic> data,
   ) {
+    final resolvedName = ((data['name'] as String?) ?? (data['username'] as String?) ?? '').trim();
+    final resolvedProfileImage =
+        ((data['profileImage'] as String?) ?? (data['photoUrl'] as String?) ?? '').trim();
+
     return AppUser(
       uid: uid,
-      name: (data['name'] as String?) ?? '',
+      name: resolvedName,
       email: (data['email'] as String?) ?? '',
-      profileImage: (data['profileImage'] as String?) ?? '',
+      profileImage: resolvedProfileImage,
       householdId: (data['householdId'] as String?) ?? '',
       createdAt: data['createdAt'] as Timestamp?,
       completedRecipes: (data['completedRecipes'] as num?)?.toInt() ?? 0,
@@ -40,8 +44,10 @@ class AppUser {
   Map<String, dynamic> toFirestore() {
     return {
       'name': name,
+      'username': name,
       'email': email,
       'profileImage': profileImage,
+      'photoUrl': profileImage,
       'householdId': householdId,
       'createdAt': createdAt,
       'completedRecipes': completedRecipes,

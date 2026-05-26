@@ -13,6 +13,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prepify/screens/user_search_screen.dart';
 import 'package:prepify/screens/favorites_screen.dart';
 import 'package:prepify/screens/settings_screen.dart';
+import 'package:prepify/home/profile_screen/widgets/stock_tracking_section.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -195,6 +196,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                   ),
                   const SizedBox(height: 25),
                 ],
+              ),
+            ),
+            // Inline stock tracking embedded in user profile header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                child: const StockTrackingSection(),
               ),
             ),
             SliverPersistentHeader(

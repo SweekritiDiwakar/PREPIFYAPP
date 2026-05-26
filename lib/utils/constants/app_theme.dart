@@ -13,7 +13,7 @@ class AppThemes {
       cursorColor: Colors.black,
     ),
     appBarTheme: const AppBarTheme(
-      color: AppColors.primary,
+      backgroundColor: AppColors.primary,
       elevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(
@@ -63,7 +63,6 @@ class AppThemes {
     colorScheme: const ColorScheme.light(
       primary: Color(0xFF9CCC65),
       onSurface: Colors.black,
-      onBackground: Colors.black,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -97,7 +96,7 @@ class AppThemes {
       onSurface: Colors.white,
     ),
     appBarTheme: const AppBarTheme(
-      color: AppColors.primary,
+      backgroundColor: AppColors.primary,
       elevation: 0,
       centerTitle: true,
       titleTextStyle: TextStyle(

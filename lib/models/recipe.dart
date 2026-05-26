@@ -25,6 +25,14 @@ class Recipe {
   final int likes;
   final List<String> tags;
 
+  static String _normalizeOwnerId(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      return value.substring(1, value.length - 1).trim();
+    }
+    return value;
+  }
+
   factory Recipe.fromFirestore(
     String id,
     Map<String, dynamic> data,
@@ -42,7 +50,8 @@ class Recipe {
           .where((item) => item.trim().isNotEmpty)
           .toList(),
       imageUrl: (data['imageUrl'] as String?) ?? '',
-      createdBy: (data['createdBy'] as String?) ?? '',
+      // Support legacy documents that used `userId` instead of `createdBy`.
+      createdBy: _normalizeOwnerId((data['createdBy'] as String?) ?? (data['userId'] as String?) ?? ''),
       createdAt: data['createdAt'] as Timestamp?,
       likes: (data['likes'] as int?) ?? 0,
       tags: ((data['tags'] as List<dynamic>?) ?? [])

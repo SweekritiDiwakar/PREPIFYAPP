@@ -12,6 +12,8 @@ class GroceryFirestoreService {
       _db.collection('grocery_lists');
   static CollectionReference<Map<String, dynamic>> get _users =>
       _db.collection('users');
+  static CollectionReference<Map<String, dynamic>> get _households =>
+      _db.collection('households');
   static CollectionReference<Map<String, dynamic>> get _events =>
       _db.collection('household_events');
 
@@ -27,14 +29,18 @@ class GroceryFirestoreService {
     try {
       final householdId = await UserProfileService.getCurrentUserHouseholdId();
       if (householdId.isEmpty) {
-        // No household — show lists created by this user, sorted client-side
+        // No household — show lists where user is a member
         yield* _lists
-            .where('createdBy', isEqualTo: _currentUid)
+            .where('members', arrayContains: _currentUid)
             .snapshots();
       } else {
-        yield* _lists
-            .where('householdId', isEqualTo: householdId)
-            .snapshots();
+        // With household — show lists where user is a member OR list belongs to household
+        yield* _lists.where(
+          Filter.or(
+            Filter('householdId', isEqualTo: householdId),
+            Filter('members', arrayContains: _currentUid),
+          )
+        ).snapshots();
       }
     } catch (e) {
       yield* _lists.limit(0).snapshots();
@@ -56,6 +62,30 @@ class GroceryFirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
     });
     return docRef.id;
+  }
+
+  static Future<String> getCurrentUserHouseholdIdFromLists() async {
+    final query = await _lists.where('members', arrayContains: _currentUid).get();
+
+    if (query.docs.isEmpty) {
+      return '';
+    }
+
+    for (final doc in query.docs) {
+      final householdId = ((doc.data()['householdId'] as String?) ?? '').trim();
+      if (householdId.isEmpty) {
+        continue;
+      }
+
+      await _syncHouseholdMembership(
+        householdId: householdId,
+        userId: _currentUid,
+      );
+
+      return householdId;
+    }
+
+    return '';
   }
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> streamItems(String listId) {
@@ -93,8 +123,15 @@ class GroceryFirestoreService {
       }
       
       final listData = listDoc.data();
+      final listHouseholdId = listData?['householdId'] as String?;
       final members = List<String>.from(listData?['members'] ?? []);
-      if (!members.contains(currentUser.uid)) {
+      
+      bool hasAccess = members.contains(currentUser.uid);
+      if (!hasAccess && householdId.isNotEmpty && householdId == listHouseholdId) {
+        hasAccess = true;
+      }
+      
+      if (!hasAccess) {
         throw StateError('You do not have permission to add items to this list.');
       }
 
@@ -203,9 +240,39 @@ class GroceryFirestoreService {
     }
 
     final userId = userSnap.docs.first.id;
+    final listDoc = await _lists.doc(listId).get();
+    if (!listDoc.exists) {
+      throw StateError('Grocery list not found.');
+    }
+
+    final listData = listDoc.data();
+    final listName = ((listData?['name'] as String?) ?? '').trim();
+    final members = List<String>.from(listData?['members'] ?? []);
+
+    final listHouseholdId = ((listData?['householdId'] as String?) ?? '').trim();
+
+    if (userId == _currentUid) {
+      throw StateError('You cannot add yourself to the list.');
+    }
+    if (members.contains(userId)) {
+      throw StateError('This user is already a member of the list.');
+    }
+
     await _lists.doc(listId).update({
       'members': FieldValue.arrayUnion(<String>[userId]),
     });
+
+    await _syncHouseholdMembership(
+      householdId: listHouseholdId,
+      userId: userId,
+    );
+
+    await _notifyUserAddedToList(
+      userId: userId,
+      listId: listId,
+      listName: listName.isNotEmpty ? listName : 'your grocery list',
+      householdId: listHouseholdId,
+    );
   }
 
   static Future<Map<String, String>> getUserNamesByIds(List<String> uids) async {
@@ -250,5 +317,150 @@ class GroceryFirestoreService {
       'createdBy': _currentUid,
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  // Invite by username or email
+  static Future<String> inviteToList(String listId, String usernameOrEmail) async {
+    final currentUserId = _currentUid;
+
+    // Search by username first, then email
+    QuerySnapshot? snap;
+    snap = await _users
+        .where('username', isEqualTo: usernameOrEmail)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) {
+      snap = await _users
+          .where('email', isEqualTo: usernameOrEmail)
+          .limit(1)
+          .get();
+    }
+
+    if (snap.docs.isEmpty) return 'userNotFound';
+
+    final inviteeUid = snap.docs.first.id;
+
+    // Don't add yourself
+    if (inviteeUid == currentUserId) return 'isSelf';
+
+    final listDoc = await _lists.doc(listId).get();
+    if (!listDoc.exists) return 'listNotFound';
+
+    final listData = listDoc.data();
+    final members = List<String>.from(listData?['members'] ?? []);
+    if (members.contains(inviteeUid)) return 'alreadyMember';
+    final listName = ((listData?['name'] as String?) ?? '').trim();
+    final householdId = ((listData?['householdId'] as String?) ?? '').trim();
+
+    await _lists.doc(listId).update({
+      'members': FieldValue.arrayUnion([inviteeUid]),
+    });
+
+    await _syncHouseholdMembership(
+      householdId: householdId,
+      userId: inviteeUid,
+    );
+
+    await _notifyUserAddedToList(
+      userId: inviteeUid,
+      listId: listId,
+      listName: listName.isNotEmpty ? listName : 'your grocery list',
+      householdId: householdId,
+    );
+
+    return 'success';
+  }
+
+  // Remove a member
+  static Future<void> removeMember(String listId, String memberId) async {
+    await _lists.doc(listId).update({
+      'members': FieldValue.arrayRemove([memberId]),
+    });
+  }
+
+  static Future<void> removeMemberFromHousehold(String householdId, String memberId) async {
+    final trimmedHouseholdId = householdId.trim();
+    final trimmedMemberId = memberId.trim();
+    if (trimmedHouseholdId.isEmpty || trimmedMemberId.isEmpty) {
+      return;
+    }
+
+    final query = await _lists
+        .where('householdId', isEqualTo: trimmedHouseholdId)
+        .where('members', arrayContains: trimmedMemberId)
+        .get();
+
+    for (final doc in query.docs) {
+      await doc.reference.update({
+        'members': FieldValue.arrayRemove(<String>[trimmedMemberId]),
+      });
+    }
+
+    await _households.doc(trimmedHouseholdId).update({
+      'members': FieldValue.arrayRemove(<String>[trimmedMemberId]),
+    });
+
+    await UserProfileService.updateHouseholdId(
+      uid: trimmedMemberId,
+      householdId: '',
+    );
+  }
+
+  static Future<void> _syncHouseholdMembership({
+    required String householdId,
+    required String userId,
+  }) async {
+    final trimmedHouseholdId = householdId.trim();
+    if (trimmedHouseholdId.isEmpty || userId.trim().isEmpty) {
+      return;
+    }
+
+    await _households.doc(trimmedHouseholdId).set(
+      {
+        'members': FieldValue.arrayUnion(<String>[userId]),
+      },
+      SetOptions(merge: true),
+    );
+
+    await UserProfileService.updateHouseholdId(
+      uid: userId,
+      householdId: trimmedHouseholdId,
+    );
+  }
+
+  static Future<void> _notifyUserAddedToList({
+    required String userId,
+    required String listId,
+    required String listName,
+    required String householdId,
+  }) async {
+    final actorName = _auth.currentUser?.displayName?.trim();
+    final message = actorName != null && actorName.isNotEmpty
+        ? '$actorName added you to the grocery list "$listName".'
+        : 'You were added to the grocery list "$listName".';
+
+    await _db.collection('notifications').add({
+      'userId': userId,
+      'listId': listId,
+      'listName': listName,
+      'title': 'Added to grocery list',
+      'message': message,
+      'type': 'grocery_list_member_added',
+      'read': false,
+      'createdBy': _currentUid,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    if (householdId.isNotEmpty) {
+      await _events.add({
+        'householdId': householdId,
+        'type': 'grocery_list_member_added',
+        'title': 'Added to grocery list',
+        'body': message,
+        'createdBy': _currentUid,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 }

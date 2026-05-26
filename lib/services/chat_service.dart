@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:prepify/home/grocery_list_screen/firestore_service.dart';
 import 'package:prepify/services/user_profile_service.dart';
 
 class ChatService {
@@ -12,7 +13,16 @@ class ChatService {
       _db.collection('messages');
 
   static Future<String> getCurrentUserHouseholdId() {
-    return UserProfileService.getCurrentUserHouseholdId();
+    return _resolveCurrentUserHouseholdId();
+  }
+
+  static Future<String> _resolveCurrentUserHouseholdId() async {
+    final householdId = await UserProfileService.getCurrentUserHouseholdId();
+    if (householdId.isNotEmpty) {
+      return householdId;
+    }
+
+    return GroceryFirestoreService.getCurrentUserHouseholdIdFromLists();
   }
 
   static Stream<QuerySnapshot<Map<String, dynamic>>> streamHouseholdMessages(
@@ -20,13 +30,13 @@ class ChatService {
   ) {
     return _messages
         .where('householdId', isEqualTo: householdId)
-        .orderBy('createdAt', descending: false)
         .snapshots();
   }
 
-  static Future<void> sendHouseholdMessage({
+  static Future<String> sendHouseholdMessage({
     required String householdId,
     required String messageText,
+    String? messageId,
   }) async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -34,10 +44,14 @@ class ChatService {
     }
 
     final trimmed = messageText.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return '';
+
+    // Do not enforce household existence here; Firestore security rules will
+    // enforce membership server-side. The client should remain permissive so
+    // that optimistic UI works consistently with existing messages.
 
     final senderName = await _resolveSenderName(user);
-    final docRef = _messages.doc();
+    final docRef = messageId == null ? _messages.doc() : _messages.doc(messageId);
 
     await docRef.set({
       'messageId': docRef.id,
@@ -47,6 +61,8 @@ class ChatService {
       'messageText': trimmed,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    return docRef.id;
   }
 
   static Future<String> _resolveSenderName(User user) async {

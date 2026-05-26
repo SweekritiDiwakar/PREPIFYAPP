@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prepify/models/user_model.dart';
@@ -32,12 +33,66 @@ class UserService {
 
   // Get user's recipes
   static Stream<List<Map<String, dynamic>>> streamUserRecipes(String userId) {
-    return _db
+    // Support both newer `createdBy` field and legacy `userId` field.
+    // We'll listen to both queries and merge results to ensure compatibility.
+    final controller = StreamController<List<Map<String, dynamic>>>.broadcast();
+
+    StreamSubscription? subCreatedBy;
+    StreamSubscription? subUserId;
+
+    void emitCombined(List<QueryDocumentSnapshot> a, List<QueryDocumentSnapshot> b) {
+      final map = <String, Map<String, dynamic>>{};
+      for (final doc in a) {
+        map[doc.id] = {'_id': doc.id, ...doc.data() as Map<String, dynamic>};
+      }
+      for (final doc in b) {
+        map[doc.id] = {'_id': doc.id, ...doc.data() as Map<String, dynamic>};
+      }
+      final combined = map.values.toList()
+        ..sort((x, y) {
+          final tx = x['createdAt'] as Timestamp?;
+          final ty = y['createdAt'] as Timestamp?;
+          final dx = tx?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final dy = ty?.toDate() ?? DateTime.fromMillisecondsSinceEpoch(0);
+          return dy.compareTo(dx);
+        });
+      controller.add(combined);
+    }
+
+    List<QueryDocumentSnapshot> latestCreatedBy = [];
+    List<QueryDocumentSnapshot> latestUserId = [];
+
+    subCreatedBy = _db
+        .collection('recipes')
+        .where('createdBy', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .listen((snap) {
+      latestCreatedBy = snap.docs;
+      emitCombined(latestCreatedBy, latestUserId);
+    }, onError: (err) {
+      // ignore errors for one stream; emit what we have
+    });
+
+    subUserId = _db
         .collection('recipes')
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .listen((snap) {
+      latestUserId = snap.docs;
+      emitCombined(latestCreatedBy, latestUserId);
+    }, onError: (err) {
+      // ignore
+    });
+
+    controller.onCancel = () async {
+      await subCreatedBy?.cancel();
+      await subUserId?.cancel();
+      await controller.close();
+    };
+
+    return controller.stream;
   }
 
   // Get user's favorite recipes

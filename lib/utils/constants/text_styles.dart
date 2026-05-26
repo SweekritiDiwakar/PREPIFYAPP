@@ -112,5 +112,5 @@ class AppTextStyles {
     height: 1.45,
   );
 
-  static get headingExtraLarge => null;
+  static Null get headingExtraLarge => null;
 }

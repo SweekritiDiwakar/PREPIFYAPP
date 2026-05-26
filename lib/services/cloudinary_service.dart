@@ -11,9 +11,9 @@ class CloudinaryService {
   // ────────────────────────────────────────────────────────────────
 
   static const String _uploadUrl =
-      'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
+      'https://api.cloudinary.com/v1_1/$_cloudName/auto/upload';
 
-  /// Uploads [imageFile] to Cloudinary and returns the secure URL.
+  /// Uploads [mediaFile] to Cloudinary and returns the secure URL.
   static Future<String> uploadImage(File imageFile) async {
     try {
       final request = http.MultipartRequest('POST', Uri.parse(_uploadUrl));
