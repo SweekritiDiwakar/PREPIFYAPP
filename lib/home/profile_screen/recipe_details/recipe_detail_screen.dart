@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prepify/home/add_recipe_screen/add_recipe_screen.dart';
 import 'package:prepify/providers/recipe_provider.dart';
+import 'package:prepify/providers/social_provider.dart';
+import 'package:prepify/services/social_service.dart';
 import 'package:prepify/models/recipe.dart';
+import 'package:prepify/models/post.dart';
 
 class RecipeSection {
   final String? sectionTitle;
@@ -59,6 +63,8 @@ class RecipeDetailScreen extends StatefulWidget {
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Recipe? _localRecipe;
+  Post? _linkedPost;
+  bool _loadingSocial = true;
 
   Recipe get _recipe {
     if (_localRecipe != null) return _localRecipe!;
@@ -91,12 +97,109 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     super.initState();
     _localRecipe = widget.recipe;
     _tabController = TabController(length: 2, vsync: this, initialIndex: 0);
+    _loadSocialPost();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSocialPost() async {
+    final recipeId = _recipe.id;
+    if (recipeId.isEmpty) {
+      setState(() => _loadingSocial = false);
+      return;
+    }
+    
+    try {
+      final post = await SocialService.fetchPostByRecipeId(recipeId);
+      if (!mounted) return;
+      
+      setState(() {
+        _linkedPost = post;
+        _loadingSocial = false;
+      });
+
+      if (post != null) {
+        final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+        if (currentUserId != null) {
+          context.read<SocialProvider>().checkLikeStatus(post.id, currentUserId);
+          context.read<SocialProvider>().checkFavoriteStatus(post.id, currentUserId);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading social post: $e');
+      if (mounted) {
+        setState(() => _loadingSocial = false);
+      }
+    }
+  }
+
+  Future<void> _handleLike() async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to like recipes.')),
+      );
+      return;
+    }
+
+    if (_linkedPost == null) {
+      final recipe = _recipe;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
+      final username = userDoc.data()?['username'] as String? ?? 'Prepify User';
+      
+      await SocialService.createPost(
+        recipeId: recipe.id,
+        imageUrl: recipe.imageUrl,
+        description: 'Check out my recipe: ${recipe.title}!\n\n${recipe.description}',
+        category: recipe.tags.isNotEmpty ? recipe.tags.first : 'General',
+        username: username,
+      );
+      
+      final post = await SocialService.fetchPostByRecipeId(recipe.id);
+      if (post == null) return;
+      _linkedPost = post;
+    }
+
+    if (_linkedPost != null) {
+      await context.read<RecipeProvider>().likeRecipe(_recipe.id);
+      await context.read<SocialProvider>().toggleLike(_linkedPost!.id, currentUserId);
+    }
+  }
+
+  Future<void> _handleFavorite() async {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in to save recipes.')),
+      );
+      return;
+    }
+
+    if (_linkedPost == null) {
+      final recipe = _recipe;
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(currentUserId).get();
+      final username = userDoc.data()?['username'] as String? ?? 'Prepify User';
+      
+      await SocialService.createPost(
+        recipeId: recipe.id,
+        imageUrl: recipe.imageUrl,
+        description: 'Check out my recipe: ${recipe.title}!\n\n${recipe.description}',
+        category: recipe.tags.isNotEmpty ? recipe.tags.first : 'General',
+        username: username,
+      );
+      
+      final post = await SocialService.fetchPostByRecipeId(recipe.id);
+      if (post == null) return;
+      _linkedPost = post;
+    }
+
+    if (_linkedPost != null) {
+      await context.read<SocialProvider>().toggleFavorite(_linkedPost!.id, currentUserId);
+    }
   }
 
   void _showActionMenu(Recipe recipe, bool canManage) {
@@ -107,6 +210,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       ),
       backgroundColor: const Color(0xFFFEF2EF),
       builder: (context) {
+        final isFavorited = _linkedPost != null && context.watch<SocialProvider>().isFavorited(_linkedPost!.id);
+        
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 20),
           child: Column(
@@ -194,7 +299,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
               const Divider(height: 1, color: Colors.black12),
               _buildActionMenuItem(Icons.feedback_outlined, 'Feedback For The Chef'),
               const Divider(height: 1, color: Colors.black12),
-              _buildActionMenuItem(Icons.collections_bookmark_outlined, 'Add To Collections'),
+              _buildActionMenuItem(
+                isFavorited ? Icons.collections_bookmark : Icons.collections_bookmark_outlined,
+                isFavorited ? 'Remove From Collections' : 'Add To Collections',
+                onTap: _handleFavorite,
+              ),
             ],
           ),
         );
@@ -228,6 +337,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       allSteps.addAll(section.steps);
     }
 
+    final socialProvider = context.watch<SocialProvider>();
+    final isLiked = _linkedPost != null && socialProvider.isLiked(_linkedPost!.id);
+    
     return Scaffold(
       backgroundColor: const Color(0xFFFEF2EF), // Light pinkish background from photo
       body: Stack(
@@ -315,7 +427,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Icon(Icons.favorite_border, color: Colors.black, size: 28),
+                      IconButton(
+                        onPressed: _handleLike,
+                        icon: Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: isLiked ? Colors.red : Colors.black,
+                          size: 28,
+                        ),
+                      ),
                     ],
                   ),
                 ),

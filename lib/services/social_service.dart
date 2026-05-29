@@ -230,4 +230,10 @@ class SocialService {
 
     await postRef.delete();
   }
+
+  static Future<Post?> fetchPostByRecipeId(String recipeId) async {
+    final query = await _posts.where('recipeId', isEqualTo: recipeId).limit(1).get();
+    if (query.docs.isEmpty) return null;
+    return Post.fromFirestore(query.docs.first.id, query.docs.first.data());
+  }
 }

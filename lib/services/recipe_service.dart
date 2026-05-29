@@ -167,6 +167,17 @@ class RecipeService {
     }
 
     await _recipes.doc(recipeId).delete();
+
+    try {
+      await SocialService.deleteRecipePost(
+        recipeId: recipeId,
+        userId: currentUser.uid,
+        imageUrl: recipe.imageUrl,
+        title: recipe.title,
+      );
+    } catch (e) {
+      debugPrint('Error deleting recipe post: $e');
+    }
   }
 
   // Stream for real-time updates (e.g. for user's own recipes)
